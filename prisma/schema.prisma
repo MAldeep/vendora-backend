@@ -28,6 +28,11 @@ enum TenantRole {
   INVENTORY_STAFF
   CUSTOMER_SERVICE
 }
+enum ProductStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
 model User {
   id           String           @id @default(uuid())
   email        String           @unique
@@ -56,7 +61,7 @@ model Tenant {
   isActive    Boolean          @default(true) @map("is_active")
   createdAt   DateTime         @default(now()) @map("created_at")
   updatedAt   DateTime         @updatedAt @map("updated_at")
-
+  products Product[]
   tenantRoles TenantUserRole[]
 
   @@map("tenants")
@@ -74,5 +79,41 @@ model TenantUserRole {
 
   @@unique([userId, tenantId])
   @@map("tenant_user_roles")
+}
+
+model Category {
+  id String @id @default(uuid())
+  name String
+  slug String @unique
+  parentId String? @map("parent_id")
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  products Product[]
+  parent   Category?  @relation("CategoryToCategory", fields: [parentId], references: [id], onDelete: SetNull)
+  children Category[] @relation("CategoryToCategory")
+
+
+  @@map("categories")
+}
+
+model Product {
+  id String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  categoryId String @map("category_id")
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  title String
+  slug String
+  description String?
+  price Decimal @db.Decimal(10, 2)
+  compareAtPrice Decimal? @db.Decimal(10, 2) @map("compare_at_price")
+  sku String @unique
+  status ProductStatus @default(DRAFT)
+  isFeatured Boolean @default(false) @map("is_featured")
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+  @@unique([tenantId, slug])
+  @@map("products")
 }
 
