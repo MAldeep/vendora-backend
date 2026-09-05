@@ -33,6 +33,19 @@ enum ProductStatus {
   PUBLISHED
   ARCHIVED
 }
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
 model User {
   id           String           @id @default(uuid())
   email        String           @unique
@@ -48,6 +61,7 @@ model User {
 
   ownedTenants Tenant[]
   tenantRoles  TenantUserRole[]
+  masterOrders MasterOrder[]
 
   @@map("users")
 }
@@ -61,9 +75,11 @@ model Tenant {
   isActive    Boolean          @default(true) @map("is_active")
   createdAt   DateTime         @default(now()) @map("created_at")
   updatedAt   DateTime         @updatedAt @map("updated_at")
+
+
   products Product[]
   tenantRoles TenantUserRole[]
-
+  tenantOrders TenantOrder[]
   @@map("tenants")
 }
 
@@ -116,6 +132,7 @@ model Product {
 
   images ProductImage[]
   variants ProductVariant[]
+  orderItems OrderItem[]
 
   @@unique([tenantId, slug])
   @@map("products")
@@ -144,5 +161,54 @@ model ProductVariant {
   attributes Json @db.JsonB
   createdAt DateTime   @default(now()) @map("created_at")
   updatedAt DateTime   @updatedAt @map("updated_at")
+
+  orderItems OrderItem[]
+
+  @@map("product_variants")
 }
 
+model MasterOrder {
+  id String @id @default(uuid())
+  userId String @map("user_id")
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  totalAmount Decimal @db.Decimal(10, 2) @map("total_amount")
+  paymentStatus PaymentStatus @default(PENDING) @map("payment_status")
+  paymentGateway String? @map("payment_gateway")
+  shippingAddress Json @db.JsonB @map("shipping_address")
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  tenantOrder TenantOrder[]
+  @@map("master_orders")
+}
+
+model TenantOrder {
+  id String @id @default(uuid())
+  tenantId String @map("tenant_id")
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  masterOrderId String @map("master_order_id")
+  masterOrder MasterOrder @relation(fields: [masterOrderId], references: [id], onDelete: Cascade)
+  subTotal Decimal @db.Decimal(10, 2) @map("sub_total")
+  orderStatus OrderStatus @default(PENDING) @map("order_status")
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  orderItems OrderItem[]
+  @@map("tenant_orders")
+}
+
+model OrderItem {
+  id String @id @default(uuid())
+  tenantOrderId String @map("tenant_order_id")
+  tenantOrder TenantOrder @relation(fields: [tenantOrderId], references: [id], onDelete: Cascade)
+  productId String @map("product_id")
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  variantId String? @map("variant_id")
+  variant ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  quantity Int
+  unitPrice Decimal @db.Decimal(10, 2) @map("unit_price")
+  totalPrice Decimal @db.Decimal(10, 2) @map("total_price")
+    createdAt DateTime   @default(now()) @map("created_at")
+
+  @@map("order_items")
+}
