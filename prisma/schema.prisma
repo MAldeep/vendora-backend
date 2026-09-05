@@ -22,18 +22,57 @@ enum UserType {
   PLATFORM_SUPER_ADMIN
   USER
 }
+enum TenantRole {
+  OWNER
+  MANAGER
+  INVENTORY_STAFF
+  CUSTOMER_SERVICE
+}
 model User {
-  id           String    @id @default(uuid())
-  email        String    @unique
-  passwordHash String    @map("password_hash")
-  fullName     String    @map("full_name")
-  phoneNumber  String?   @map("phone_number")
-  birthDate    DateTime? @map("birth_date")
+  id           String           @id @default(uuid())
+  email        String           @unique
+  passwordHash String           @map("password_hash")
+  fullName     String           @map("full_name")
+  phoneNumber  String?          @map("phone_number")
+  birthDate    DateTime?        @map("birth_date")
   gender       Gender?
-  userType     UserType  @default(USER) @map("user_type")
-  isActive     Boolean   @default(true) @map("is_active")
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
+  userType     UserType         @default(USER) @map("user_type")
+  isActive     Boolean          @default(true) @map("is_active")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+
+  ownedTenants Tenant[]
+  tenantRoles  TenantUserRole[]
 
   @@map("users")
 }
+
+model Tenant {
+  id          String           @id @default(uuid())
+  name        String
+  slug        String           @unique
+  ownerId     String           @map("owner_id")
+  owner       User             @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  isActive    Boolean          @default(true) @map("is_active")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  tenantRoles TenantUserRole[]
+
+  @@map("tenants")
+}
+
+model TenantUserRole {
+  id        String     @id @default(uuid())
+  userId    String     @map("user_id")
+  user      User       @relation(fields: [userId], references: [id], onDelete: Restrict)
+  tenantId  String     @map("tenant_id")
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  role      TenantRole @default(INVENTORY_STAFF)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  @@unique([userId, tenantId])
+  @@map("tenant_user_roles")
+}
+
