@@ -94,4 +94,30 @@ export class AuthController {
       },
     });
   });
+  static getMe = catchAsync(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const me = await AuthServices.getMe(id as string);
+    res.status(200).json({
+      status: "success",
+      message: "User Detected Successfully !",
+      data: me,
+    });
+  });
+  static forgotPassword = catchAsync(async (req: Request, res: Response) => {
+    const email = req.body;
+    const { message, resetToken } = await AuthServices.forgotPassword(email);
+    res.status(200).json({
+      status: "success",
+      message: message,
+      token: resetToken,
+    });
+  });
+  static resetPassword = catchAsync(async (req: Request, res: Response) => {
+    const { token, newPassword } = req.body;
+    const { message } = await AuthServices.resetPassword(token, newPassword);
+    res.status(200).json({
+      status: "success",
+      message: message,
+    });
+  });
 }
