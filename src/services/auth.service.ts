@@ -17,6 +17,8 @@ import {
   RegisterTenantOwnerInput,
   RegisterUserInput,
 } from "../validation/auth.schema.js";
+import { env } from "../config/env.js";
+import jwt from "jsonwebtoken";
 
 export class AuthServices {
   // Register initiation customer (normal user)
@@ -201,6 +203,99 @@ export class AuthServices {
     return {
       accessToken: newAccessToken,
       refreshToken: newRefreshToken,
+    };
+  }
+  // get me
+  static async getMe(userId: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        phoneNumber: true,
+        birthDate: true,
+        gender: true,
+        userType: true,
+        isActive: true,
+        createdAt: true,
+        ownedTenants: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            isActive: true,
+          },
+        },
+        tenantRoles: {
+          select: {
+            role: true,
+            tenant: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!user || !user.isActive) {
+      throw new AppError("User not found or account deactivated", 404);
+    }
+    return user;
+  }
+  static async forgotPassword(email: string) {
+    const user = await prisma.user.findUnique({
+      where: { email: email },
+    });
+    if (!user) {
+      // just for security purposes
+      return {
+        message:
+          "If an account with that email exists, a password reset link has been sent.",
+      };
+    }
+    const resetPayload = { userId: user.id, email: user.email };
+    const resetToken = jwt.sign(resetPayload, env.JWT_ACCESS_SECRET, {
+      expiresIn: "15m",
+    });
+    // await sendResetPasswordEmail(user.email, resetToken);
+    return {
+      message:
+        "If an account with that email exists, a password reset link has been sent.",
+      resetToken,
+    };
+  }
+  static async resetPassword(token: string, newPassword: string) {
+    let decoded: { userId: string; email: string };
+    try {
+      decoded = jwt.verify(token, env.JWT_ACCESS_SECRET) as {
+        userId: string;
+        email: string;
+      };
+    } catch (_error) {
+      throw new AppError("Invalid or expired password reset token.", 400);
+    }
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+    });
+    if (!user) {
+      throw new AppError("User no longer exists.", 404);
+    }
+    const newPasswordHash = await hashPassword(newPassword);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash: newPasswordHash,
+        passwordChangedAt: new Date(),
+      },
+    });
+    return {
+      message:
+        "Password reset successful. You can now log in with your new password.",
     };
   }
 }
