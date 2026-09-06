@@ -23,7 +23,11 @@ router.post(
   AuthController.registerTenantOwnerInit,
 );
 
-router.post("/register/verify/:token", AuthController.verifyEmailAndRegister);
+router.post(
+  "/register/verify/:token",
+  // validate(verifyEmailSchema),
+  AuthController.verifyEmailAndRegister,
+);
 router.post("/login", validate(loginSchema), AuthController.login);
 
 router.post("/refresh-token", AuthController.refreshToken);
