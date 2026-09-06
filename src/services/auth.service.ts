@@ -161,8 +161,8 @@ export class AuthServices {
       email: user.email,
       userType: user.userType,
     };
-    const accessToken = generateAccessToken(tokenPayload);
-    const refreshToken = generateRefreshToken(tokenPayload);
+    const accessToken: string = generateAccessToken(tokenPayload);
+    const refreshToken: string = generateRefreshToken(tokenPayload);
     return {
       user: {
         id: user.id,
@@ -201,6 +201,7 @@ export class AuthServices {
     const newAccessToken = generateAccessToken(tokenPayload);
     const newRefreshToken = generateRefreshToken(tokenPayload);
     return {
+      user: user,
       accessToken: newAccessToken,
       refreshToken: newRefreshToken,
     };
