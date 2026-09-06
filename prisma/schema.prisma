@@ -56,6 +56,7 @@ model User {
   gender       Gender?
   userType     UserType         @default(USER) @map("user_type")
   isActive     Boolean          @default(true) @map("is_active")
+  passwordChangedAt DateTime?
   createdAt    DateTime         @default(now()) @map("created_at")
   updatedAt    DateTime         @updatedAt @map("updated_at")
 
