@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import jwt, { SignOptions } from "jsonwebtoken";
 import { env } from "../config/env.js";
+import { UserType } from "@prisma/client";
 export interface JwtPayload {
   userId: string;
   email: string;
@@ -11,7 +12,8 @@ export interface EmailVerificationPayload {
   passwordHash: string;
   fullName: string;
   phoneNumber?: string | null;
-  userType: "CUSTOMER" | "TENANT_USER";
+  userType: UserType;
+  isTenantOwner?: boolean;
   tenantName?: string;
   tenantSlug?: string;
 }
