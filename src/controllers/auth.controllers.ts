@@ -120,4 +120,43 @@ export class AuthController {
       message: message,
     });
   });
+  static inviteUser = catchAsync(async (req: Request, res: Response) => {
+    const ownerUserId = req.user?.id;
+
+    const { tenantId, email, role } = req.body;
+
+    const { invitationToken, message } = await AuthServices.inviteUser(
+      ownerUserId as string,
+      tenantId,
+      email,
+      role,
+    );
+
+    res.status(200).json({
+      status: "success",
+      message: message,
+      data: {
+        invitationToken: invitationToken,
+      },
+    });
+  });
+  static acceptInvitation = catchAsync(async (req: Request, res: Response) => {
+    const { token, fullName, password } = req.body;
+
+    const { accessToken, role, user, refreshToken } =
+      await AuthServices.acceptInvitation(token, fullName, password);
+
+    res.cookie("refreshToken", refreshToken, refreshTokenCookiesOptions);
+    res.cookie("accessToken", accessToken, accessTokenCookiesOptions);
+
+    res.status(201).json({
+      status: "success",
+      message: "Invitation accepted and account setup completed successfully!",
+      data: {
+        user: user,
+        role: role,
+        accessToken: accessToken,
+      },
+    });
+  });
 }

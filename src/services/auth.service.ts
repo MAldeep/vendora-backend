@@ -300,7 +300,7 @@ export class AuthServices {
     };
   }
   // Invite user by owner
-  async inviteUser(
+  static async inviteUser(
     ownerUserId: string,
     tenantId: string,
     email: string,
@@ -349,7 +349,11 @@ export class AuthServices {
     };
   }
   // Accept Invitation
-  async acceptInvitation(token: string, fullName: string, password: string) {
+  static async acceptInvitation(
+    token: string,
+    fullName: string,
+    password: string,
+  ) {
     let decoded: { email: string; tenantId: string; role: TenantRole };
 
     try {
