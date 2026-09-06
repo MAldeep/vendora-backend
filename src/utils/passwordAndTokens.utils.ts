@@ -6,6 +6,15 @@ export interface JwtPayload {
   email: string;
   userType: string;
 }
+export interface EmailVerificationPayload {
+  email: string;
+  passwordHash: string;
+  fullName: string;
+  phoneNumber?: string | null;
+  userType: "CUSTOMER" | "TENANT_USER";
+  tenantName?: string;
+  tenantSlug?: string;
+}
 export const hashPassword = async (password: string): Promise<string> => {
   const salt = await bcrypt.genSalt(12);
   return bcrypt.hash(password, salt);
@@ -37,4 +46,18 @@ export const verifyAccessToken = (token: string): JwtPayload => {
 
 export const verifyRefreshToken = (token: string): JwtPayload => {
   return jwt.verify(token, env.JWT_REFRESH_SECRET) as JwtPayload;
+};
+
+export const generateVerificationToken = (
+  payload: EmailVerificationPayload,
+): string => {
+  const secret = env.JWT_ACCESS_SECRET;
+  return jwt.sign(payload, secret, { expiresIn: "30m" });
+};
+
+export const verifyVerificationToken = (
+  token: string,
+): EmailVerificationPayload => {
+  const secret = env.JWT_ACCESS_SECRET;
+  return jwt.verify(token, secret) as EmailVerificationPayload;
 };
