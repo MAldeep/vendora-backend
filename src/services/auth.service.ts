@@ -2,15 +2,18 @@ import { TenantRole, UserType } from "@prisma/client";
 import prisma from "../config/prisma.js";
 import { AppError } from "../utils/appError.js";
 import {
+  comparePassword,
   EmailVerificationPayload,
   generateAccessToken,
   generateRefreshToken,
   generateVerificationToken,
   hashPassword,
   JwtPayload,
+  verifyRefreshToken,
   verifyVerificationToken,
 } from "../utils/passwordAndTokens.utils.js";
 import {
+  LoginInput,
   RegisterTenantOwnerInput,
   RegisterUserInput,
 } from "../validation/auth.schema.js";
@@ -125,13 +128,7 @@ export class AuthServices {
       }
       return { user, tenant };
     });
-    const tokenPayload: JwtPayload = {
-      userId: result.user.id,
-      email: result.user.email,
-      userType: result.user.userType,
-    };
-    const accessToken = generateAccessToken(tokenPayload);
-    const refreshToken = generateRefreshToken(tokenPayload);
+
     return {
       user: {
         id: result.user.id,
@@ -140,8 +137,70 @@ export class AuthServices {
         userType: result.user.userType,
       },
       tenant: result.tenant,
+    };
+  }
+  // Login
+  static async login(input: LoginInput) {
+    const user = await prisma.user.findUnique({
+      where: { email: input.email },
+    });
+    if (!user || !(await comparePassword(input.password, user.passwordHash))) {
+      throw new AppError("Invalid email or password", 401);
+    }
+
+    if (!user.isActive) {
+      throw new AppError(
+        "Your account has been deactivated. Please contact support.",
+        403,
+      );
+    }
+    const tokenPayload: JwtPayload = {
+      userId: user.id,
+      email: user.email,
+      userType: user.userType,
+    };
+    const accessToken = generateAccessToken(tokenPayload);
+    const refreshToken = generateRefreshToken(tokenPayload);
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        phoneNumber: user.phoneNumber,
+        userType: user.userType,
+      },
       accessToken,
       refreshToken,
+    };
+  }
+  // Refresh Token
+  static async refreshToken(refreshToken: string) {
+    let decoded: JwtPayload;
+
+    try {
+      decoded = verifyRefreshToken(refreshToken);
+    } catch (_error) {
+      throw new AppError(
+        "Invalid or expired refresh token. Please log in again.",
+        401,
+      );
+    }
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+    });
+    if (!user || !user.isActive) {
+      throw new AppError("User no longer exists or account is inactive.", 401);
+    }
+    const tokenPayload: JwtPayload = {
+      userId: user.id,
+      email: user.email,
+      userType: user.userType,
+    };
+    const newAccessToken = generateAccessToken(tokenPayload);
+    const newRefreshToken = generateRefreshToken(tokenPayload);
+    return {
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
     };
   }
 }
