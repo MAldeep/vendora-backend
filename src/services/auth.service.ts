@@ -298,4 +298,128 @@ export class AuthServices {
         "Password reset successful. You can now log in with your new password.",
     };
   }
+  // Invite user by owner
+  async inviteUser(
+    ownerUserId: string,
+    tenantId: string,
+    email: string,
+    role: TenantRole,
+  ) {
+    const requesterRole = await prisma.tenantUserRole.findUnique({
+      where: {
+        userId_tenantId: { userId: ownerUserId, tenantId },
+      },
+    });
+
+    if (
+      !requesterRole ||
+      (requesterRole.role !== TenantRole.OWNER &&
+        requesterRole.role !== TenantRole.MANAGER)
+    ) {
+      throw new AppError(
+        "You do not have permission to invite members to this store.",
+        403,
+      );
+    }
+
+    const existingMember = await prisma.user.findFirst({
+      where: {
+        email,
+        tenantRoles: {
+          some: { tenantId },
+        },
+      },
+    });
+
+    if (existingMember) {
+      throw new AppError("User is already a member of this store.", 400);
+    }
+
+    const invitePayload = { email, tenantId, role };
+    const invitationToken = jwt.sign(invitePayload, env.JWT_ACCESS_SECRET, {
+      expiresIn: "48h",
+    });
+
+    // await sendInvitationEmail(email, invitationToken, tenantId);
+
+    return {
+      message: `Invitation successfully created for ${email}.`,
+      invitationToken,
+    };
+  }
+  // Accept Invitation
+  async acceptInvitation(token: string, fullName: string, password: string) {
+    let decoded: { email: string; tenantId: string; role: TenantRole };
+
+    try {
+      decoded = jwt.verify(token, env.JWT_ACCESS_SECRET) as {
+        email: string;
+        tenantId: string;
+        role: TenantRole;
+      };
+    } catch (_error) {
+      throw new AppError("Invalid or expired invitation token.", 400);
+    }
+
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: decoded.tenantId },
+    });
+
+    if (!tenant || !tenant.isActive) {
+      throw new AppError(
+        "The store accepting this invitation no longer exists or is inactive.",
+        404,
+      );
+    }
+
+    const passwordHash = await hashPassword(password);
+
+    const result = await prisma.$transaction(async (tx) => {
+      let user = await tx.user.findUnique({
+        where: { email: decoded.email },
+      });
+
+      if (!user) {
+        user = await tx.user.create({
+          data: {
+            email: decoded.email,
+            passwordHash,
+            fullName,
+            userType: UserType.USER,
+          },
+        });
+      }
+
+      const tenantUserRole = await tx.tenantUserRole.create({
+        data: {
+          userId: user.id,
+          tenantId: decoded.tenantId,
+          role: decoded.role,
+        },
+      });
+
+      return { user, tenantUserRole };
+    });
+
+    const tokenPayload: JwtPayload = {
+      userId: result.user.id,
+      email: result.user.email,
+      userType: result.user.userType,
+    };
+
+    const accessToken = generateAccessToken(tokenPayload);
+    const refreshToken = generateRefreshToken(tokenPayload);
+
+    return {
+      user: {
+        id: result.user.id,
+        email: result.user.email,
+        fullName: result.user.fullName,
+        userType: result.user.userType,
+      },
+      role: result.tenantUserRole.role,
+      accessToken,
+      refreshToken,
+    };
+  }
 }
