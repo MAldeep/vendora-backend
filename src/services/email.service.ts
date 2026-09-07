@@ -196,4 +196,105 @@ export class EmailService {
       subject: "Verify Your Email , Join Vendora Now",
     });
   }
+  static async inviteUser(
+    email: string,
+    token: string,
+    tenantId: string,
+    role?: string,
+    tenantName?: string,
+  ): Promise<void> {
+    const acceptUrl = `${env.CLIENT_URL}/accept-invitation?token=${token}`;
+
+    const html = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>You have been invited to join a store</title>
+      </head>
+      <body style="margin: 0; padding: 0; background-color: #f4f6f8; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; -webkit-font-smoothing: antialiased;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #f4f6f8; padding: 40px 10px;">
+          <tr>
+            <td align="center">
+              <table role="presentation" width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
+                
+                <!-- Header -->
+                <tr>
+                  <td style="background-color: #4f46e5; padding: 30px; text-align: center;">
+                    <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 700; letter-spacing: 0.5px;">Vendora</h1>
+                    <p style="color: #c7d2fe; margin: 5px 0 0 0; font-size: 14px;">Store Team Invitation</p>
+                  </td>
+                </tr>
+
+                <!-- Content -->
+                <tr>
+                  <td style="padding: 40px 30px;">
+                    <h2 style="color: #1e293b; margin: 0 0 16px 0; font-size: 20px;">You're Invited! 🎉</h2>
+                    <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">
+                      You have been invited to join <strong>${tenantName || "a store"}</strong> on the Vendora E-Commerce platform.
+                    </p>
+
+                    <!-- Invitation Info Card -->
+                    <div style="background-color: #f8fafc; border-left: 4px solid #4f46e5; padding: 16px; border-radius: 6px; margin-bottom: 24px;">
+                      <p style="margin: 0; color: #334155; font-size: 14px; line-height: 1.5;">
+                        <strong>Store ID:</strong> ${tenantId}<br>
+                        ${role ? `<strong>Assigned Role:</strong> ${role}` : ""}
+                      </p>
+                    </div>
+
+                    <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 24px 0;">
+                      Click the button below to accept your invitation, complete your profile, and set up your access credentials:
+                    </p>
+
+                    <!-- CTA Button -->
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: 30px 0;">
+                      <tr>
+                        <td align="center" style="border-radius: 8px; background-color: #4f46e5;">
+                          <a href="${acceptUrl}" target="_blank" style="font-size: 16px; font-family: Helvetica, Arial, sans-serif; color: #ffffff; text-decoration: none; border-radius: 8px; padding: 14px 28px; display: inline-block; font-weight: 600;">
+                            Accept Invitation
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <p style="color: #64748b; font-size: 14px; line-height: 1.5; margin: 0 0 20px 0;">
+                      If the button doesn't work, copy and paste this link into your web browser:
+                    </p>
+                    <p style="margin: 0 0 30px 0; word-break: break-all;">
+                      <a href="${acceptUrl}" style="color: #4f46e5; font-size: 13px; text-decoration: underline;">${acceptUrl}</a>
+                    </p>
+
+                    <p style="color: #94a3b8; font-size: 13px; line-height: 1.5; margin: 0; border-top: 1px solid #f1f5f9; padding-top: 20px;">
+                      This invitation link is valid for 48 hours. If you were not expecting this invitation, you can ignore this email.
+                    </p>
+                  </td>
+                </tr>
+
+                <!-- Footer -->
+                <tr>
+                  <td style="background-color: #f8fafc; padding: 20px 30px; text-align: center; border-top: 1px solid #f1f5f9;">
+                    <p style="color: #94a3b8; font-size: 12px; margin: 0;">
+                      &copy; ${new Date().getFullYear()} Vendora Platform. All rights reserved.
+                    </p>
+                  </td>
+                </tr>
+
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `;
+
+    const text = `You have been invited to join a store on Vendora!\n\nPlease accept your invitation by visiting the link below:\n${acceptUrl}\n\nNote: This link will expire in 48 hours.`;
+
+    await this.send({
+      to: email,
+      subject: `Invitation to Join ${tenantName || "Store"} on Vendora`,
+      html,
+      text,
+    });
+  }
 }

@@ -351,7 +351,7 @@ export class AuthServices {
       expiresIn: "48h",
     });
 
-    // await sendInvitationEmail(email, invitationToken, tenantId);
+    await EmailService.inviteUser(email, invitationToken, tenantId, role);
 
     return {
       message: `Invitation successfully created for ${email}.`,
