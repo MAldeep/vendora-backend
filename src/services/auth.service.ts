@@ -82,7 +82,12 @@ export class AuthServices {
       tenantSlug: input.tenantSlug,
     };
     const verificationToken = generateVerificationToken(verificationPayload);
-    // await sendVerificationEmail(input.email, verificationToken);
+    await EmailService.registerInitOwner(
+      input.email,
+      verificationToken,
+      input.fullName,
+      input.tenantName,
+    );
     return {
       message:
         "Verification email sent. Please verify your email to create your store.",

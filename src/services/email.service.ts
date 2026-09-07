@@ -23,7 +23,7 @@ export class EmailService {
     token: string,
     username: string,
   ): Promise<void> {
-    const verificationUrl = `${env.CLIENT_URL}/register/user/init?token=${token}`;
+    const verificationUrl = `${env.CLIENT_URL}/register/verify?token=${token}`;
     const html = `
       <!DOCTYPE html>
       <html lang="en">
@@ -99,6 +99,101 @@ export class EmailService {
       to: toEmail,
       subject: "Verify Your Email to Join Vendora Now",
       html: html,
+    });
+  }
+  static async registerInitOwner(
+    toEmail: string,
+    token: string,
+    username: string,
+    tenantName: string,
+  ): Promise<void> {
+    const verificationUrl = `${env.CLIENT_URL}/register/verify?token=${token}`;
+    const html = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Verify Your Store Owner Account</title>
+      </head>
+      <body style="margin: 0; padding: 0; background-color: #f4f6f8; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; -webkit-font-smoothing: antialiased;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #f4f6f8; padding: 40px 10px;">
+          <tr>
+            <td align="center">
+              <table role="presentation" width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
+                
+                <!-- Header -->
+                <tr>
+                  <td style="background-color: #0f172a; padding: 30px; text-align: center;">
+                    <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 700; letter-spacing: 0.5px;">Vendora</h1>
+                    <p style="color: #38bdf8; margin: 5px 0 0 0; font-size: 14px; font-weight: 500;">Store Merchant Onboarding</p>
+                  </td>
+                </tr>
+
+                <!-- Content -->
+                <tr>
+                  <td style="padding: 40px 30px;">
+                    <h2 style="color: #0f172a; margin: 0 0 16px 0; font-size: 20px;">Welcome, ${username}! 🚀</h2>
+                    <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 20px 0;">
+                      You are one step away from launching your store <strong style="color: #0f172a;">${tenantName}</strong> on Vendora.
+                    </p>
+
+                    <!-- Store Info Badge -->
+                    <div style="background-color: #f8fafc; border-left: 4px solid #38bdf8; padding: 16px; border-radius: 6px; margin-bottom: 24px;">
+                      <p style="margin: 0; color: #334155; font-size: 14px;">
+                        <strong>Store Name:</strong> ${tenantName}<br>
+                        <strong>Role:</strong> Tenant Owner (Full Management Access)
+                      </p>
+                    </div>
+
+                    <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 24px 0;">
+                      Please verify your email address to initialize your store workspace and access your dashboard:
+                    </p>
+
+                    <!-- CTA Button -->
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: 30px 0;">
+                      <tr>
+                        <td align="center" style="border-radius: 8px; background-color: #0f172a;">
+                          <a href="${verificationUrl}" target="_blank" style="font-size: 16px; font-family: Helvetica, Arial, sans-serif; color: #ffffff; text-decoration: none; border-radius: 8px; padding: 14px 28px; display: inline-block; font-weight: 600;">
+                            Verify & Launch Store
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <p style="color: #64748b; font-size: 14px; line-height: 1.5; margin: 0 0 20px 0;">
+                      If the button above does not work, paste this URL into your browser:
+                    </p>
+                    <p style="margin: 0 0 30px 0; word-break: break-all;">
+                      <a href="${verificationUrl}" style="color: #0284c7; font-size: 13px; text-decoration: underline;">${verificationUrl}</a>
+                    </p>
+
+                    <p style="color: #94a3b8; font-size: 13px; line-height: 1.5; margin: 0; border-top: 1px solid #f1f5f9; padding-top: 20px;">
+                      If you didn't initiate this store setup, you can safely ignore this email. Link expires in 24 hours.
+                    </p>
+                  </td>
+                </tr>
+
+                <!-- Footer -->
+                <tr>
+                  <td style="background-color: #f8fafc; padding: 20px 30px; text-align: center; border-top: 1px solid #f1f5f9;">
+                    <p style="color: #94a3b8; font-size: 12px; margin: 0;">
+                      &copy; ${new Date().getFullYear()} Vendora Multi-Tenant E-Commerce.
+                    </p>
+                  </td>
+                </tr>
+
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `;
+    await this.send({
+      to: toEmail,
+      html: html,
+      subject: "Verify Your Email , Join Vendora Now",
     });
   }
 }
