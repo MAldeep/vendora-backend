@@ -1,0 +1,104 @@
+import { transporter } from "../config/email.config,.js";
+import { env } from "../config/env.js";
+
+interface IEmailOptions {
+  to: string;
+  subject: string;
+  html: string;
+  text?: string;
+}
+export class EmailService {
+  private static async send(options: IEmailOptions): Promise<void> {
+    const mailOptions = {
+      from: `Vendora - Multi-Tenant : ${env.SMTP_Username}`,
+      to: options.to,
+      subject: options.subject,
+      html: options.html,
+      text: options.text,
+    };
+    await transporter.sendMail(mailOptions);
+  }
+  static async registerInitUser(
+    toEmail: string,
+    token: string,
+    username: string,
+  ): Promise<void> {
+    const verificationUrl = `${env.CLIENT_URL}/register/user/init?token=${token}`;
+    const html = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Verify Your Email</title>
+      </head>
+      <body style="margin: 0; padding: 0; background-color: #f4f6f8; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; -webkit-font-smoothing: antialiased;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #f4f6f8; padding: 40px 10px;">
+          <tr>
+            <td align="center">
+              <table role="presentation" width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
+                
+                <!-- Header -->
+                <tr>
+                  <td style="background-color: #4f46e5; padding: 30px; text-align: center;">
+                    <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 700; letter-spacing: 0.5px;">Vendora</h1>
+                    <p style="color: #c7d2fe; margin: 5px 0 0 0; font-size: 14px;">Multi-Tenant E-Commerce Engine</p>
+                  </td>
+                </tr>
+
+                <!-- Content -->
+                <tr>
+                  <td style="padding: 40px 30px;">
+                    <h2 style="color: #1e293b; margin: 0 0 16px 0; font-size: 20px;">Welcome aboard, ${username}! 👋</h2>
+                    <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 24px 0;">
+                      Thank you for starting your journey with <strong>Vendora</strong>. To complete your account setup and secure your access, please verify your email address by clicking the button below:
+                    </p>
+
+                    <!-- CTA Button -->
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: 30px 0;">
+                      <tr>
+                        <td align="center" style="border-radius: 8px; background-color: #4f46e5;">
+                          <a href="${verificationUrl}" target="_blank" style="font-size: 16px; font-family: Helvetica, Arial, sans-serif; color: #ffffff; text-decoration: none; border-radius: 8px; padding: 14px 28px; display: inline-block; font-weight: 600;">
+                            Verify Email Address
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <p style="color: #64748b; font-size: 14px; line-height: 1.5; margin: 0 0 20px 0;">
+                      If the button doesn't work, copy and paste this link into your web browser:
+                    </p>
+                    <p style="margin: 0 0 30px 0; word-break: break-all;">
+                      <a href="${verificationUrl}" style="color: #4f46e5; font-size: 13px; text-decoration: underline;">${verificationUrl}</a>
+                    </p>
+
+                    <p style="color: #94a3b8; font-size: 13px; line-height: 1.5; margin: 0; border-top: 1px solid #f1f5f9; padding-top: 20px;">
+                      If you did not create an account with Vendora, please ignore this email. This link will expire in 24 hours.
+                    </p>
+                  </td>
+                </tr>
+
+                <!-- Footer -->
+                <tr>
+                  <td style="background-color: #f8fafc; padding: 20px 30px; text-align: center; border-top: 1px solid #f1f5f9;">
+                    <p style="color: #94a3b8; font-size: 12px; margin: 0;">
+                      &copy; ${new Date().getFullYear()} Vendora Platform. All rights reserved.
+                    </p>
+                  </td>
+                </tr>
+
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `;
+
+    await this.send({
+      to: toEmail,
+      subject: "Verify Your Email to Join Vendora Now",
+      html: html,
+    });
+  }
+}

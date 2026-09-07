@@ -19,6 +19,7 @@ import {
 } from "../validation/auth.schema.js";
 import { env } from "../config/env.js";
 import jwt from "jsonwebtoken";
+import { EmailService } from "./email.service.js";
 
 export class AuthServices {
   // Register initiation customer (normal user)
@@ -40,7 +41,11 @@ export class AuthServices {
       isTenantOwner: false,
     };
     const verificationToken = generateVerificationToken(verificationPayload);
-    // await sendVerificationEmail(input.email, verificationToken);
+    await EmailService.registerInitUser(
+      input.email,
+      verificationToken,
+      input.fullName,
+    );
     return {
       message: "Verification email sent successfully. Please check your inbox.",
       verificationToken,
