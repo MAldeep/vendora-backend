@@ -38,4 +38,33 @@ export class TenantControllers {
       data: { tenant },
     });
   });
+  static update = catchAsync(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const data = { id, ...req.body };
+    const tenant = await TenantServices.update(data);
+    res.status(200).json({
+      status: "success",
+      message: "Tenant Updated Successfully !",
+      data: {
+        tenant,
+      },
+    });
+  });
+  static toggleStatus = catchAsync(async (req: Request, res: Response) => {
+    const data = req.body;
+    const tenant = await TenantServices.toggleStatus(data);
+    res.status(200).json({
+      status: "success",
+      message: "Tenant's Status Updated Successfully !",
+      data: { tenant },
+    });
+  });
+  static delete = catchAsync(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const message = await TenantServices.delete({ id: String(id) });
+    res.status(200).json({
+      status: "success",
+      message,
+    });
+  });
 }

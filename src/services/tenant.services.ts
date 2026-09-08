@@ -3,6 +3,11 @@ import prisma from "../config/prisma.js";
 import { AppError } from "../utils/appError.js";
 import { CreateTenant, GetBySlug } from "../validation/tenant.schemas.js";
 import { PrismaAPIFeatures } from "../utils/apiFeatures.js";
+import {
+  DeleteTenantInput,
+  ToggleTenantStatusInput,
+  UpdateTenantInput,
+} from "../types/tenants.types.js";
 
 export class TenantServices {
   static async create(ownerId: string, data: CreateTenant) {
@@ -86,6 +91,7 @@ export class TenantServices {
         isActive: true,
         createdAt: true,
         updatedAt: true,
+        products: true,
         owner: {
           select: {
             id: true,
@@ -101,5 +107,80 @@ export class TenantServices {
     }
 
     return tenant;
+  }
+  static async update(data: UpdateTenantInput) {
+    const { id, ...updateData } = data;
+
+    const existingTenant = await prisma.tenant.findUnique({
+      where: { id },
+    });
+
+    if (!existingTenant) {
+      throw new AppError("Tenant not found", 404);
+    }
+
+    if (updateData.slug && updateData.slug !== existingTenant.slug) {
+      const slugTaken = await prisma.tenant.findUnique({
+        where: { slug: updateData.slug },
+      });
+
+      if (slugTaken) {
+        throw new AppError("Slug is already taken by another store", 400);
+      }
+    }
+
+    const updatedTenant = await prisma.tenant.update({
+      where: { id },
+      data: updateData,
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        isActive: true,
+        updatedAt: true,
+      },
+    });
+
+    return updatedTenant;
+  }
+  static async toggleStatus(data: ToggleTenantStatusInput) {
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: data.id },
+      select: { id: true, isActive: true },
+    });
+
+    if (!tenant) {
+      throw new AppError("Tenant not found", 404);
+    }
+
+    const updatedTenant = await prisma.tenant.update({
+      where: { id: data.id },
+      data: {
+        isActive: !tenant.isActive,
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        isActive: true,
+      },
+    });
+
+    return updatedTenant;
+  }
+  static async delete(data: DeleteTenantInput) {
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: data.id },
+    });
+
+    if (!tenant) {
+      throw new AppError("Tenant not found", 404);
+    }
+
+    await prisma.tenant.delete({
+      where: { id: data.id },
+    });
+
+    return { message: "Tenant deleted successfully" };
   }
 }
