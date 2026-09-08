@@ -1,5 +1,5 @@
 import z from "zod";
-
+// create schema
 export const createTenantSchema = z.object({
   body: z.object({
     name: z
@@ -17,5 +17,10 @@ export const createTenantSchema = z.object({
       ),
   }),
 });
-
+export const getBySlugSchema = z.object({
+  body: z.object({
+    slug: z.string().min(1, "You must provide a slug"),
+  }),
+});
 export type CreateTenant = z.infer<typeof createTenantSchema>["body"];
+export type GetBySlug = z.infer<typeof getBySlugSchema>["body"];

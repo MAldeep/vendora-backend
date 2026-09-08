@@ -18,4 +18,24 @@ export class TenantControllers {
       });
     },
   );
+  static getAll = catchAsync(async (req: Request, res: Response) => {
+    const { tenants, meta } = await TenantServices.getAll(req.query);
+    res.status(200).json({
+      status: "success",
+      results: tenants.length,
+      data: {
+        tenants,
+        meta,
+      },
+    });
+  });
+  static getBySlug = catchAsync(async (req: Request, res: Response) => {
+    const slug = req.body;
+    const tenant = await TenantServices.getBySlug(slug);
+    res.status(200).json({
+      status: "success",
+      message: "Tenant found",
+      data: { tenant },
+    });
+  });
 }

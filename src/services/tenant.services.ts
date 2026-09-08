@@ -1,7 +1,8 @@
 import { TenantRole } from "@prisma/client";
 import prisma from "../config/prisma.js";
 import { AppError } from "../utils/appError.js";
-import { CreateTenant } from "../validation/tenant.schemas.js";
+import { CreateTenant, GetBySlug } from "../validation/tenant.schemas.js";
+import { PrismaAPIFeatures } from "../utils/apiFeatures.js";
 
 export class TenantServices {
   static async create(ownerId: string, data: CreateTenant) {
@@ -36,5 +37,69 @@ export class TenantServices {
       return tenant;
     });
     return newTenant;
+  }
+  static async getAll(queryString: Record<string, any>) {
+    const features = new PrismaAPIFeatures(queryString, {
+      searchFields: ["name", "slug"],
+    })
+      .filter()
+      .sort()
+      .limitFields()
+      .paginate();
+    const queryArgs = features.build();
+    const [tenants, total] = await Promise.all([
+      prisma.tenant.findMany({
+        ...queryArgs,
+        include: queryArgs.select
+          ? undefined
+          : {
+              owner: {
+                select: {
+                  id: true,
+                  fullName: true,
+                  email: true,
+                },
+              },
+            },
+      }),
+      prisma.tenant.count({
+        where: features.where,
+      }),
+    ]);
+    return {
+      tenants,
+      meta: {
+        total,
+        page: features.page,
+        limit: features.take,
+        totalPages: Math.ceil(total / features.take),
+      },
+    };
+  }
+  static async getBySlug(data: GetBySlug) {
+    const tenant = await prisma.tenant.findUnique({
+      where: { slug: data.slug },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+        owner: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            phoneNumber: true,
+          },
+        },
+      },
+    });
+    if (!tenant) {
+      throw new AppError("Tenant/Store not found with this slug", 404);
+    }
+
+    return tenant;
   }
 }
