@@ -13,9 +13,14 @@ import {
   verifyVerificationToken,
 } from "../utils/passwordAndTokens.utils.js";
 import {
+  AcceptInvitationInput,
+  ForgotPasswordInput,
+  InviteUserInput,
   LoginInput,
   RegisterTenantOwnerInput,
   RegisterUserInput,
+  ResetPasswordInput,
+  VerifyEmailInput,
 } from "../validation/auth.schema.js";
 import { env } from "../config/env.js";
 import jwt from "jsonwebtoken";
@@ -95,10 +100,10 @@ export class AuthServices {
     };
   }
   // Register Transaction
-  static async verifyEmailAndRegister(token: string) {
+  static async verifyEmailAndRegister(data: VerifyEmailInput) {
     let payload: EmailVerificationPayload;
     try {
-      payload = verifyVerificationToken(token);
+      payload = verifyVerificationToken(data.token);
     } catch (_error) {
       throw new AppError("Invalid or expired verification token.", 400);
     }
@@ -258,9 +263,9 @@ export class AuthServices {
     }
     return user;
   }
-  static async forgotPassword(email: string) {
+  static async forgotPassword(data: ForgotPasswordInput) {
     const user = await prisma.user.findUnique({
-      where: { email: email },
+      where: { email: data.email },
     });
     if (!user) {
       // just for security purposes
@@ -280,10 +285,10 @@ export class AuthServices {
       resetToken,
     };
   }
-  static async resetPassword(token: string, newPassword: string) {
+  static async resetPassword(data: ResetPasswordInput) {
     let decoded: { userId: string; email: string };
     try {
-      decoded = jwt.verify(token, env.JWT_ACCESS_SECRET) as {
+      decoded = jwt.verify(data.token, env.JWT_ACCESS_SECRET) as {
         userId: string;
         email: string;
       };
@@ -296,7 +301,7 @@ export class AuthServices {
     if (!user) {
       throw new AppError("User no longer exists.", 404);
     }
-    const newPasswordHash = await hashPassword(newPassword);
+    const newPasswordHash = await hashPassword(data.newPassword);
     await prisma.user.update({
       where: { id: user.id },
       data: {
@@ -312,9 +317,7 @@ export class AuthServices {
   // Invite user by owner
   static async inviteUser(
     ownerUserId: string,
-    tenantId: string,
-    email: string,
-    role: TenantRole,
+    { tenantId, email, role }: InviteUserInput,
   ) {
     const requesterRole = await prisma.tenantUserRole.findUnique({
       where: {
@@ -359,15 +362,11 @@ export class AuthServices {
     };
   }
   // Accept Invitation
-  static async acceptInvitation(
-    token: string,
-    fullName: string,
-    password: string,
-  ) {
+  static async acceptInvitation(data: AcceptInvitationInput) {
     let decoded: { email: string; tenantId: string; role: TenantRole };
 
     try {
-      decoded = jwt.verify(token, env.JWT_ACCESS_SECRET) as {
+      decoded = jwt.verify(data.token, env.JWT_ACCESS_SECRET) as {
         email: string;
         tenantId: string;
         role: TenantRole;
@@ -387,13 +386,13 @@ export class AuthServices {
       );
     }
 
-    const passwordHash = await hashPassword(password);
+    const passwordHash = await hashPassword(data.password);
 
     const result = await prisma.$transaction(async (tx) => {
       let user = await tx.user.findUnique({
         where: { email: decoded.email },
       });
-
+      const fullName = data.fullName;
       if (!user) {
         user = await tx.user.create({
           data: {

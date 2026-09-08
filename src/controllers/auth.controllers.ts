@@ -46,8 +46,14 @@ export class AuthController {
   // Register exe
   static verifyEmailAndRegister = catchAsync(
     async (req: Request, res: Response) => {
-      const { token } = req.params;
-      const user = await AuthServices.verifyEmailAndRegister(token as string);
+      const rawToken = req.params.token;
+      const token = Array.isArray(rawToken) ? rawToken[0] : rawToken;
+
+      if (!token) {
+        throw new AppError("Verification token is required", 400);
+      }
+
+      const user = await AuthServices.verifyEmailAndRegister({ token });
       res.status(201).json({
         status: "success",
         message: "User Created Successfully !",
@@ -113,8 +119,8 @@ export class AuthController {
     });
   });
   static resetPassword = catchAsync(async (req: Request, res: Response) => {
-    const { token, newPassword } = req.body;
-    const { message } = await AuthServices.resetPassword(token, newPassword);
+    const data = req.body;
+    const { message } = await AuthServices.resetPassword(data);
     res.status(200).json({
       status: "success",
       message: message,
@@ -123,13 +129,11 @@ export class AuthController {
   static inviteUser = catchAsync(async (req: Request, res: Response) => {
     const ownerUserId = req.user?.id;
 
-    const { tenantId, email, role } = req.body;
+    const data = req.body;
 
     const { invitationToken, message } = await AuthServices.inviteUser(
       ownerUserId as string,
-      tenantId,
-      email,
-      role,
+      data,
     );
 
     res.status(200).json({
@@ -141,10 +145,10 @@ export class AuthController {
     });
   });
   static acceptInvitation = catchAsync(async (req: Request, res: Response) => {
-    const { token, fullName, password } = req.body;
+    const data = req.body;
 
     const { accessToken, role, user, refreshToken } =
-      await AuthServices.acceptInvitation(token, fullName, password);
+      await AuthServices.acceptInvitation(data);
 
     res.cookie("refreshToken", refreshToken, refreshTokenCookiesOptions);
     res.cookie("accessToken", accessToken, accessTokenCookiesOptions);

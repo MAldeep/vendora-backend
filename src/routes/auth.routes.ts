@@ -1,9 +1,14 @@
 import { Router } from "express";
 import { validate } from "../middleware/validate.middleware.js";
 import {
+  acceptInvitationSchema,
+  forgotPasswordSchema,
+  inviteUserSchema,
   loginSchema,
   registerTenantOwnerSchema,
   registerUserSchema,
+  resetPasswordSchema,
+  verifyEmailSchema,
 } from "../validation/auth.schema.js";
 import { AuthController } from "../controllers/auth.controllers.js";
 import { protect } from "../middleware/auth.middleware.js";
@@ -25,7 +30,7 @@ router.post(
 
 router.post(
   "/register/verify/:token",
-  // validate(verifyEmailSchema),
+  validate(verifyEmailSchema),
   AuthController.verifyEmailAndRegister,
 );
 router.post("/login", validate(loginSchema), AuthController.login);
@@ -34,18 +39,18 @@ router.post("/refresh-token", AuthController.refreshToken);
 
 router.post(
   "/forgot-password",
-  // validate(forgotPasswordSchema),
+  validate(forgotPasswordSchema),
   AuthController.forgotPassword,
 );
 
 router.post(
   "/reset-password",
-  // validate(resetPasswordSchema),
+  validate(resetPasswordSchema),
   AuthController.resetPassword,
 );
 router.post(
   "/accept-invitation",
-  // validate(acceptInvitationSchema),
+  validate(acceptInvitationSchema),
   AuthController.acceptInvitation,
 );
 
@@ -54,7 +59,7 @@ router.get("/me", protect, AuthController.getMe);
 router.post(
   "/invite-user",
   protect,
-  // validate(inviteUserSchema),
+  validate(inviteUserSchema),
   AuthController.inviteUser,
 );
 
