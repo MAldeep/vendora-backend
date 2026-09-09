@@ -9,7 +9,10 @@ export const requirePermission = (...requiredPermissions: Permission[]) => {
     try {
       const userId = req.user?.id;
 
-      const tenantId = req.headers["x-tenant-id"] as string;
+      const tenantId =
+        typeof req.params.tenantId === "string"
+          ? req.params.tenantId
+          : undefined;
 
       if (!userId) {
         throw new AppError("Unauthorized. User not authenticated.", 401);
