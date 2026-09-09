@@ -1,4 +1,4 @@
-import { TenantRole, UserType } from "@prisma/client";
+import { Permission, TenantRole, UserType } from "@prisma/client";
 import prisma from "../config/prisma.js";
 import { AppError } from "../utils/appError.js";
 import {
@@ -25,6 +25,7 @@ import {
 import { env } from "../config/env.js";
 import jwt from "jsonwebtoken";
 import { EmailService } from "./email.service.js";
+import { DEFAULT_ROLE_PERMISSIONS } from "../config/permissions.js";
 
 export class AuthServices {
   // Register initiation customer (normal user)
@@ -164,6 +165,7 @@ export class AuthServices {
     const user = await prisma.user.findUnique({
       where: { email: input.email },
     });
+
     if (!user || !(await comparePassword(input.password, user.passwordHash))) {
       throw new AppError("Invalid email or password", 401);
     }
@@ -174,21 +176,20 @@ export class AuthServices {
         403,
       );
     }
+
+    const fullUserData = await AuthServices.getMe(user.id);
+
     const tokenPayload: JwtPayload = {
       userId: user.id,
       email: user.email,
       userType: user.userType,
     };
-    const accessToken: string = generateAccessToken(tokenPayload);
-    const refreshToken: string = generateRefreshToken(tokenPayload);
+
+    const accessToken = generateAccessToken(tokenPayload);
+    const refreshToken = generateRefreshToken(tokenPayload);
+
     return {
-      user: {
-        id: user.id,
-        email: user.email,
-        fullName: user.fullName,
-        phoneNumber: user.phoneNumber,
-        userType: user.userType,
-      },
+      user: fullUserData,
       accessToken,
       refreshToken,
     };
@@ -206,19 +207,18 @@ export class AuthServices {
         401,
       );
     }
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
-    });
-    if (!user || !user.isActive) {
-      throw new AppError("User no longer exists or account is inactive.", 401);
-    }
+
+    const user = await AuthServices.getMe(decoded.userId);
+
     const tokenPayload: JwtPayload = {
       userId: user.id,
       email: user.email,
       userType: user.userType,
     };
+
     const newAccessToken = generateAccessToken(tokenPayload);
     const newRefreshToken = generateRefreshToken(tokenPayload);
+
     return {
       user,
       accessToken: newAccessToken,
@@ -240,22 +240,21 @@ export class AuthServices {
         userType: true,
         isActive: true,
         createdAt: true,
-        ownedTenants: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-            isActive: true,
-          },
-        },
         tenantRoles: {
           select: {
+            tenantId: true,
             role: true,
             tenant: {
               select: {
                 id: true,
                 name: true,
                 slug: true,
+                isActive: true,
+              },
+            },
+            customRole: {
+              select: {
+                permissions: true,
               },
             },
           },
@@ -266,7 +265,33 @@ export class AuthServices {
     if (!user || !user.isActive) {
       throw new AppError("User not found or account deactivated", 404);
     }
-    return user;
+
+    const formattedTenants = user.tenantRoles.map((item) => {
+      let permissions: string[] = [];
+
+      if (item.role === TenantRole.CUSTOM && item.customRole) {
+        permissions = item.customRole.permissions;
+      } else if (item.role !== TenantRole.CUSTOM) {
+        const roleKey = item.role as Exclude<TenantRole, "CUSTOM">;
+        permissions = DEFAULT_ROLE_PERMISSIONS[roleKey] || [];
+      }
+
+      return {
+        tenantId: item.tenantId,
+        tenantName: item.tenant.name,
+        tenantSlug: item.tenant.slug,
+        tenantIsActive: item.tenant.isActive,
+        role: item.role,
+        permissions,
+      };
+    });
+
+    const { tenantRoles, ...userData } = user;
+
+    return {
+      ...userData,
+      tenants: formattedTenants,
+    };
   }
 
   // Forgot Password
