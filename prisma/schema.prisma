@@ -1,9 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -12,6 +9,7 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
 enum Gender {
   MALE
   FEMALE
@@ -22,6 +20,7 @@ enum UserType {
   PLATFORM_SUPER_ADMIN
   USER
 }
+
 enum TenantRole {
   OWNER
   MANAGER
@@ -29,17 +28,20 @@ enum TenantRole {
   CUSTOMER_SERVICE
   CUSTOM
 }
+
 enum ProductStatus {
   DRAFT
   PUBLISHED
   ARCHIVED
 }
+
 enum PaymentStatus {
   PENDING
   PAID
   FAILED
   REFUNDED
 }
+
 enum OrderStatus {
   PENDING
   PROCESSING
@@ -47,74 +49,92 @@ enum OrderStatus {
   DELIVERED
   CANCELLED
 }
-model User {
-  id           String           @id @default(uuid())
-  email        String           @unique
-  passwordHash String           @map("password_hash")
-  fullName     String           @map("full_name")
-  phoneNumber  String?          @map("phone_number")
-  birthDate    DateTime?        @map("birth_date")
-  gender       Gender?
-  userType     UserType         @default(USER) @map("user_type")
-  isActive     Boolean          @default(true) @map("is_active")
-  passwordChangedAt DateTime?
-  createdAt    DateTime         @default(now()) @map("created_at")
-  updatedAt    DateTime         @updatedAt @map("updated_at")
 
-  ownedTenants Tenant[]
-  tenantRoles  TenantUserRole[]
-  masterOrders MasterOrder[]
+enum Permission {
+  // Store / Tenant Permissions
+  MANAGE_TENANT_SETTINGS
+  VIEW_ANALYTICS
+
+  // Products & Inventory Permissions
+  CREATE_PRODUCT
+  UPDATE_PRODUCT
+  DELETE_PRODUCT
+  VIEW_PRODUCTS
+
+  // Orders Permissions
+  MANAGE_ORDERS
+  VIEW_ORDERS
+}
+
+model User {
+  id                String         @id @default(uuid())
+  email             String         @unique
+  passwordHash      String         @map("password_hash")
+  fullName          String         @map("full_name")
+  phoneNumber       String?        @map("phone_number")
+  birthDate         DateTime?      @map("birth_date")
+  gender            Gender?
+  userType          UserType       @default(USER) @map("user_type")
+  isActive          Boolean        @default(true) @map("is_active")
+  passwordChangedAt DateTime?
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime       @updatedAt @map("updated_at")
+
+  ownedTenants      Tenant[]
+  tenantRoles       TenantUserRole[]
+  masterOrders      MasterOrder[]
 
   @@map("users")
 }
 
 model Tenant {
-  id          String           @id @default(uuid())
-  name        String
-  slug        String           @unique
-  ownerId     String           @map("owner_id")
-  owner       User             @relation(fields: [ownerId], references: [id], onDelete: Restrict)
-  isActive    Boolean          @default(true) @map("is_active")
-  createdAt   DateTime         @default(now()) @map("created_at")
-  updatedAt   DateTime         @updatedAt @map("updated_at")
+  id           String           @id @default(uuid())
+  name         String
+  slug         String           @unique
+  ownerId      String           @map("owner_id")
+  owner        User             @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  isActive     Boolean          @default(true) @map("is_active")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
 
-
-  products Product[]
-  tenantRoles TenantUserRole[]
-  customRoles CustomRole[]
+  products     Product[]
+  tenantRoles  TenantUserRole[]
+  customRoles  CustomRole[]
   tenantOrders TenantOrder[]
+
   @@map("tenants")
 }
 
 model TenantUserRole {
-  id        String     @id @default(uuid())
-  userId    String     @map("user_id")
-  user      User       @relation(fields: [userId], references: [id], onDelete: Restrict)
-  tenantId  String     @map("tenant_id")
-  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  role      TenantRole @default(INVENTORY_STAFF)
+  id           String      @id @default(uuid())
+  userId       String      @map("user_id")
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenantId     String      @map("tenant_id")
+  tenant       Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  role         TenantRole  @default(INVENTORY_STAFF)
 
   customRoleId String?     @map("custom_role_id")
   customRole   CustomRole? @relation(fields: [customRoleId], references: [id], onDelete: SetNull)
 
-  
-  createdAt DateTime   @default(now()) @map("created_at")
-  updatedAt DateTime   @updatedAt @map("updated_at")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
 
   @@unique([userId, tenantId])
   @@map("tenant_user_roles")
 }
-model CustomRole {
-  id          String   @id @default(uuid())
-  name        String
-  description String?
-  tenantId    String   @map("tenant_id")
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  
-  permissions String[]
 
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+model CustomRole {
+  id              String           @id @default(uuid())
+  name            String
+  description     String?
+  tenantId        String           @map("tenant_id")
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  permissions     String[]
+
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
 
   tenantUserRoles TenantUserRole[]
 
@@ -123,117 +143,118 @@ model CustomRole {
 }
 
 model Category {
-  id String @id @default(uuid())
-  name String
-  slug String @unique
-  parentId String? @map("parent_id")
+  id        String     @id @default(uuid())
+  name      String
+  slug      String     @unique
+  parentId  String?    @map("parent_id")
   createdAt DateTime   @default(now()) @map("created_at")
   updatedAt DateTime   @updatedAt @map("updated_at")
 
-  products Product[]
-  parent   Category?  @relation("CategoryToCategory", fields: [parentId], references: [id], onDelete: SetNull)
-  children Category[] @relation("CategoryToCategory")
-
+  products  Product[]
+  parent    Category?  @relation("CategoryToCategory", fields: [parentId], references: [id], onDelete: SetNull)
+  children  Category[] @relation("CategoryToCategory")
 
   @@map("categories")
 }
 
 model Product {
-  id String @id @default(uuid())
-  tenantId String @map("tenant_id")
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  categoryId String @map("category_id")
-  category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  title String
-  slug String
-  description String?
-  price Decimal @db.Decimal(10, 2)
-  compareAtPrice Decimal? @db.Decimal(10, 2) @map("compare_at_price")
-  sku String @unique
-  status ProductStatus @default(DRAFT)
-  isFeatured Boolean @default(false) @map("is_featured")
-  createdAt DateTime   @default(now()) @map("created_at")
-  updatedAt DateTime   @updatedAt @map("updated_at")
+  id             String           @id @default(uuid())
+  tenantId       String           @map("tenant_id")
+  tenant         Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  categoryId     String           @map("category_id")
+  category       Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  title          String
+  slug           String
+  description    String?
+  price          Decimal          @db.Decimal(10, 2)
+  compareAtPrice Decimal?         @db.Decimal(10, 2) @map("compare_at_price")
+  sku            String           @unique
+  status         ProductStatus    @default(DRAFT)
+  isFeatured     Boolean          @default(false) @map("is_featured")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
 
-  images ProductImage[]
-  variants ProductVariant[]
-  orderItems OrderItem[]
+  images         ProductImage[]
+  variants       ProductVariant[]
+  orderItems     OrderItem[]
 
   @@unique([tenantId, slug])
   @@map("products")
 }
 
 model ProductImage {
-  id String @id @default(uuid())
-  productId String @map("product_id")
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  url String 
-  altText String? @map("alt_text")
-  sortOrder Int @default(0) @map("sort_order")
-  createdAt DateTime   @default(now()) @map("created_at")
+  id        String   @id @default(uuid())
+  productId String   @map("product_id")
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String 
+  altText   String?  @map("alt_text")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@map("product_images")
 }
 
 model ProductVariant {
-  id String @id @default(uuid())
-  productId String @map("product_id")
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  title String
-  sku String @unique
-  price Decimal? @db.Decimal(10, 2)
-  stockQuantity Int @default(0) @map("stock_quantity")
-  attributes Json @db.JsonB
-  createdAt DateTime   @default(now()) @map("created_at")
-  updatedAt DateTime   @updatedAt @map("updated_at")
+  id            String      @id @default(uuid())
+  productId     String      @map("product_id")
+  product       Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  title         String
+  sku           String      @unique
+  price         Decimal?    @db.Decimal(10, 2)
+  stockQuantity Int         @default(0) @map("stock_quantity")
+  attributes    Json        @db.JsonB
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
 
-  orderItems OrderItem[]
+  orderItems    OrderItem[]
 
   @@map("product_variants")
 }
 
 model MasterOrder {
-  id String @id @default(uuid())
-  userId String @map("user_id")
-  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
-  totalAmount Decimal @db.Decimal(10, 2) @map("total_amount")
-  paymentStatus PaymentStatus @default(PENDING) @map("payment_status")
-  paymentGateway String? @map("payment_gateway")
-  shippingAddress Json @db.JsonB @map("shipping_address")
-  createdAt DateTime   @default(now()) @map("created_at")
-  updatedAt DateTime   @updatedAt @map("updated_at")
+  id              String        @id @default(uuid())
+  userId          String        @map("user_id")
+  user            User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  totalAmount     Decimal       @db.Decimal(10, 2) @map("total_amount")
+  paymentStatus   PaymentStatus @default(PENDING) @map("payment_status")
+  paymentGateway  String?       @map("payment_gateway")
+  shippingAddress Json          @db.JsonB @map("shipping_address")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
 
-  tenantOrder TenantOrder[]
+  tenantOrder     TenantOrder[]
+
   @@map("master_orders")
 }
 
 model TenantOrder {
-  id String @id @default(uuid())
-  tenantId String @map("tenant_id")
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  masterOrderId String @map("master_order_id")
-  masterOrder MasterOrder @relation(fields: [masterOrderId], references: [id], onDelete: Cascade)
-  subTotal Decimal @db.Decimal(10, 2) @map("sub_total")
-  orderStatus OrderStatus @default(PENDING) @map("order_status")
-  createdAt DateTime   @default(now()) @map("created_at")
-  updatedAt DateTime   @updatedAt @map("updated_at")
+  id            String      @id @default(uuid())
+  tenantId      String      @map("tenant_id")
+  tenant        Tenant      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  masterOrderId String      @map("master_order_id")
+  masterOrder   MasterOrder @relation(fields: [masterOrderId], references: [id], onDelete: Cascade)
+  subTotal      Decimal     @db.Decimal(10, 2) @map("sub_total")
+  orderStatus   OrderStatus @default(PENDING) @map("order_status")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
 
-  orderItems OrderItem[]
+  orderItems    OrderItem[]
+
   @@map("tenant_orders")
 }
 
 model OrderItem {
-  id String @id @default(uuid())
-  tenantOrderId String @map("tenant_order_id")
-  tenantOrder TenantOrder @relation(fields: [tenantOrderId], references: [id], onDelete: Cascade)
-  productId String @map("product_id")
-  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
-  variantId String? @map("variant_id")
-  variant ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
-  quantity Int
-  unitPrice Decimal @db.Decimal(10, 2) @map("unit_price")
-  totalPrice Decimal @db.Decimal(10, 2) @map("total_price")
-    createdAt DateTime   @default(now()) @map("created_at")
+  id            String          @id @default(uuid())
+  tenantOrderId String          @map("tenant_order_id")
+  tenantOrder   TenantOrder     @relation(fields: [tenantOrderId], references: [id], onDelete: Cascade)
+  productId     String          @map("product_id")
+  product       Product         @relation(fields: [productId], references: [id], onDelete: Restrict)
+  variantId     String?         @map("variant_id")
+  variant       ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  quantity      Int
+  unitPrice     Decimal         @db.Decimal(10, 2) @map("unit_price")
+  totalPrice    Decimal         @db.Decimal(10, 2) @map("total_price")
+  createdAt     DateTime        @default(now()) @map("created_at")
 
   @@map("order_items")
 }
