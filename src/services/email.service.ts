@@ -7,6 +7,7 @@ interface IEmailOptions {
   html: string;
   text?: string;
 }
+
 export class EmailService {
   private static async send(options: IEmailOptions): Promise<void> {
     const mailOptions = {
@@ -18,6 +19,7 @@ export class EmailService {
     };
     await transporter.sendMail(mailOptions);
   }
+
   static async registerInitUser(
     toEmail: string,
     token: string,
@@ -101,6 +103,7 @@ export class EmailService {
       html: html,
     });
   }
+
   static async registerInitOwner(
     toEmail: string,
     token: string,
@@ -196,6 +199,7 @@ export class EmailService {
       subject: "Verify Your Email , Join Vendora Now",
     });
   }
+
   static async inviteUser(
     email: string,
     token: string,
@@ -293,6 +297,93 @@ export class EmailService {
     await this.send({
       to: email,
       subject: `Invitation to Join ${tenantName || "Store"} on Vendora`,
+      html,
+      text,
+    });
+  }
+
+  static async sendResetPasswordEmail(
+    toEmail: string,
+    token: string,
+  ): Promise<void> {
+    const resetUrl = `${env.CLIENT_URL}/reset-password?token=${token}`;
+
+    const html = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Reset Your Password</title>
+      </head>
+      <body style="margin: 0; padding: 0; background-color: #f4f6f8; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; -webkit-font-smoothing: antialiased;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #f4f6f8; padding: 40px 10px;">
+          <tr>
+            <td align="center">
+              <table role="presentation" width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
+                
+                <!-- Header -->
+                <tr>
+                  <td style="background-color: #dc2626; padding: 30px; text-align: center;">
+                    <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 700; letter-spacing: 0.5px;">Vendora</h1>
+                    <p style="color: #fca5a5; margin: 5px 0 0 0; font-size: 14px;">Password Reset Request</p>
+                  </td>
+                </tr>
+
+                <!-- Content -->
+                <tr>
+                  <td style="padding: 40px 30px;">
+                    <h2 style="color: #1e293b; margin: 0 0 16px 0; font-size: 20px;">Reset Your Password 🔐</h2>
+                    <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 24px 0;">
+                      We received a request to reset the password for your <strong>Vendora</strong> account. Click the button below to choose a new password:
+                    </p>
+
+                    <!-- CTA Button -->
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: 30px 0;">
+                      <tr>
+                        <td align="center" style="border-radius: 8px; background-color: #dc2626;">
+                          <a href="${resetUrl}" target="_blank" style="font-size: 16px; font-family: Helvetica, Arial, sans-serif; color: #ffffff; text-decoration: none; border-radius: 8px; padding: 14px 28px; display: inline-block; font-weight: 600;">
+                            Reset Password
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <p style="color: #64748b; font-size: 14px; line-height: 1.5; margin: 0 0 20px 0;">
+                      If the button doesn't work, copy and paste this link into your web browser:
+                    </p>
+                    <p style="margin: 0 0 30px 0; word-break: break-all;">
+                      <a href="${resetUrl}" style="color: #dc2626; font-size: 13px; text-decoration: underline;">${resetUrl}</a>
+                    </p>
+
+                    <p style="color: #94a3b8; font-size: 13px; line-height: 1.5; margin: 0; border-top: 1px solid #f1f5f9; padding-top: 20px;">
+                      If you did not request a password reset, please ignore this email or contact support if you have concerns. This link will expire in 15 minutes.
+                    </p>
+                  </td>
+                </tr>
+
+                <!-- Footer -->
+                <tr>
+                  <td style="background-color: #f8fafc; padding: 20px 30px; text-align: center; border-top: 1px solid #f1f5f9;">
+                    <p style="color: #94a3b8; font-size: 12px; margin: 0;">
+                      &copy; ${new Date().getFullYear()} Vendora Platform. All rights reserved.
+                    </p>
+                  </td>
+                </tr>
+
+              </table>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `;
+
+    const text = `Reset Your Vendora Password\n\nPlease reset your password by visiting the link below:\n${resetUrl}\n\nNote: This link will expire in 15 minutes. If you did not request this, please ignore this email.`;
+
+    await this.send({
+      to: toEmail,
+      subject: "Reset Your Vendora Account Password",
       html,
       text,
     });

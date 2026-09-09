@@ -56,6 +56,7 @@ export class AuthServices {
       verificationToken,
     };
   }
+
   // Register initiation tenant owner
   static async initiateTenantOwnerRegistration(
     input: RegisterTenantOwnerInput,
@@ -99,6 +100,7 @@ export class AuthServices {
       verificationToken,
     };
   }
+
   // Register Transaction
   static async verifyEmailAndRegister(data: VerifyEmailInput) {
     let payload: EmailVerificationPayload;
@@ -156,6 +158,7 @@ export class AuthServices {
       tenant: result.tenant,
     };
   }
+
   // Login
   static async login(input: LoginInput) {
     const user = await prisma.user.findUnique({
@@ -190,6 +193,7 @@ export class AuthServices {
       refreshToken,
     };
   }
+
   // Refresh Token
   static async refreshToken(refreshToken: string) {
     let decoded: JwtPayload;
@@ -216,12 +220,13 @@ export class AuthServices {
     const newAccessToken = generateAccessToken(tokenPayload);
     const newRefreshToken = generateRefreshToken(tokenPayload);
     return {
-      user: user,
+      user,
       accessToken: newAccessToken,
       refreshToken: newRefreshToken,
     };
   }
-  // get me
+
+  // Get Me
   static async getMe(userId: string) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -263,44 +268,58 @@ export class AuthServices {
     }
     return user;
   }
+
+  // Forgot Password
   static async forgotPassword(data: ForgotPasswordInput) {
     const user = await prisma.user.findUnique({
       where: { email: data.email },
     });
     if (!user) {
-      // just for security purposes
       return {
         message:
           "If an account with that email exists, a password reset link has been sent.",
       };
     }
+
+    const secret = env.JWT_ACCESS_SECRET + user.passwordHash;
     const resetPayload = { userId: user.id, email: user.email };
-    const resetToken = jwt.sign(resetPayload, env.JWT_ACCESS_SECRET, {
+    const resetToken = jwt.sign(resetPayload, secret, {
       expiresIn: "15m",
     });
-    // await sendResetPasswordEmail(user.email, resetToken);
+
+    // Send Email
+    await EmailService.sendResetPasswordEmail(user.email, resetToken);
+
     return {
       message:
         "If an account with that email exists, a password reset link has been sent.",
       resetToken,
     };
   }
+
+  // Reset Password
   static async resetPassword(data: ResetPasswordInput) {
-    let decoded: { userId: string; email: string };
-    try {
-      decoded = jwt.verify(data.token, env.JWT_ACCESS_SECRET) as {
-        userId: string;
-        email: string;
-      };
-    } catch (_error) {
+    const unverifiedDecoded = jwt.decode(data.token) as {
+      userId: string;
+    } | null;
+    if (!unverifiedDecoded?.userId) {
       throw new AppError("Invalid or expired password reset token.", 400);
     }
+
     const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
+      where: { id: unverifiedDecoded.userId },
     });
     if (!user) {
       throw new AppError("User no longer exists.", 404);
     }
+
+    const secret = env.JWT_ACCESS_SECRET + user.passwordHash;
+    try {
+      jwt.verify(data.token, secret);
+    } catch (_error) {
+      throw new AppError("Invalid or expired password reset token.", 400);
+    }
+
     const newPasswordHash = await hashPassword(data.newPassword);
     await prisma.user.update({
       where: { id: user.id },
@@ -314,7 +333,8 @@ export class AuthServices {
         "Password reset successful. You can now log in with your new password.",
     };
   }
-  // Invite user by owner
+
+  // Invite user by owner/manager
   static async inviteUser(
     ownerUserId: string,
     { tenantId, email, role }: InviteUserInput,
@@ -361,6 +381,7 @@ export class AuthServices {
       invitationToken,
     };
   }
+
   // Accept Invitation
   static async acceptInvitation(data: AcceptInvitationInput) {
     let decoded: { email: string; tenantId: string; role: TenantRole };
@@ -386,22 +407,41 @@ export class AuthServices {
       );
     }
 
-    const passwordHash = await hashPassword(data.password);
-
     const result = await prisma.$transaction(async (tx) => {
       let user = await tx.user.findUnique({
         where: { email: decoded.email },
       });
-      const fullName = data.fullName;
+
       if (!user) {
+        if (!data.password || !data.fullName) {
+          throw new AppError(
+            "Full name and password are required for new accounts.",
+            400,
+          );
+        }
+        const passwordHash = await hashPassword(data.password);
         user = await tx.user.create({
           data: {
             email: decoded.email,
             passwordHash,
-            fullName,
+            fullName: data.fullName,
             userType: UserType.USER,
           },
         });
+      }
+
+      // Check if role relation already exists
+      const existingRole = await tx.tenantUserRole.findUnique({
+        where: {
+          userId_tenantId: {
+            userId: user.id,
+            tenantId: decoded.tenantId,
+          },
+        },
+      });
+
+      if (existingRole) {
+        throw new AppError("You are already a member of this store.", 400);
       }
 
       const tenantUserRole = await tx.tenantUserRole.create({

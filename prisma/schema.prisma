@@ -27,6 +27,7 @@ enum TenantRole {
   MANAGER
   INVENTORY_STAFF
   CUSTOMER_SERVICE
+  CUSTOM
 }
 enum ProductStatus {
   DRAFT
@@ -80,6 +81,7 @@ model Tenant {
 
   products Product[]
   tenantRoles TenantUserRole[]
+  customRoles CustomRole[]
   tenantOrders TenantOrder[]
   @@map("tenants")
 }
@@ -91,11 +93,33 @@ model TenantUserRole {
   tenantId  String     @map("tenant_id")
   tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   role      TenantRole @default(INVENTORY_STAFF)
+
+  customRoleId String?     @map("custom_role_id")
+  customRole   CustomRole? @relation(fields: [customRoleId], references: [id], onDelete: SetNull)
+
+  
   createdAt DateTime   @default(now()) @map("created_at")
   updatedAt DateTime   @updatedAt @map("updated_at")
 
   @@unique([userId, tenantId])
   @@map("tenant_user_roles")
+}
+model CustomRole {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  tenantId    String   @map("tenant_id")
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  permissions String[]
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  tenantUserRoles TenantUserRole[]
+
+  @@unique([name, tenantId])
+  @@map("custom_roles")
 }
 
 model Category {
