@@ -8,6 +8,7 @@ import cookieParser from "cookie-parser";
 import authRoutes from "./routes/auth.routes.js";
 import { AppError } from "./utils/appError.js";
 import globalErrorHandler from "./middleware/errorHandler.middleware.js";
+import customRoleRoutes from "./routes/customRole.routes.js";
 // 1- App
 const app = express();
 
@@ -63,7 +64,7 @@ app.use(cookieParser());
 
 // 7- Routes
 app.use("/api/v1/auth", authRoutes);
-
+app.use("/api/v1/roles", customRoleRoutes);
 // 8. 404 Route Handler
 app.use((req: Request, _res: Response, next: NextFunction) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
