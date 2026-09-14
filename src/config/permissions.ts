@@ -13,6 +13,8 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<
     Permission.VIEW_PRODUCTS,
     Permission.MANAGE_ORDERS,
     Permission.VIEW_ORDERS,
+    Permission.INVITE_USER,
+    Permission.DELETE_USER,
   ],
   MANAGER: [
     Permission.VIEW_ANALYTICS,
@@ -22,6 +24,8 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<
     Permission.VIEW_PRODUCTS,
     Permission.MANAGE_ORDERS,
     Permission.VIEW_ORDERS,
+    Permission.INVITE_USER,
+    Permission.DELETE_USER,
   ],
   INVENTORY_STAFF: [
     Permission.CREATE_PRODUCT,

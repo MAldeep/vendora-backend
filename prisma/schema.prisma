@@ -64,6 +64,10 @@ enum Permission {
   // Orders Permissions
   MANAGE_ORDERS
   VIEW_ORDERS
+
+  // Users
+  INVITE_USER
+  DELETE_USER
 }
 
 model User {

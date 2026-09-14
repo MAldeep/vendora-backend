@@ -137,7 +137,7 @@ export class AuthController {
 
     const data = req.body;
 
-    const { invitationToken, message } = await AuthServices.inviteUser(
+    const { message } = await AuthServices.inviteUser(
       ownerUserId as string,
       data,
     );
@@ -177,6 +177,23 @@ export class AuthController {
     res.status(200).json({
       status: "success",
       message: "Logged out successfully!",
+    });
+  });
+  // Delete user from tenant
+  static deleteUser = catchAsync(async (req: Request, res: Response) => {
+    const ownerId = req.user?.id;
+    if (!ownerId) {
+      throw new AppError("User ID missing from request context", 400);
+    }
+    const { tenantId, userId } = req.body;
+    const { message } = await AuthServices.deleteUser(
+      ownerId,
+      userId,
+      tenantId,
+    );
+    res.status(200).json({
+      status: "success",
+      message: message,
     });
   });
 }

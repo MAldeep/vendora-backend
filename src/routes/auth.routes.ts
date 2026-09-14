@@ -12,6 +12,7 @@ import {
 } from "../validation/auth.schema.js";
 import { AuthController } from "../controllers/auth.controllers.js";
 import { protect } from "../middleware/auth.middleware.js";
+import { restrictTo } from "../middleware/restrictTo.js";
 
 const router = Router();
 // Send Mail => user
@@ -68,6 +69,13 @@ router.post(
   protect,
   validate(inviteUserSchema),
   AuthController.inviteUser,
+);
+
+router.delete(
+  "/delete-user",
+  protect,
+  restrictTo("OWNER"),
+  AuthController.deleteUser,
 );
 
 export default router;

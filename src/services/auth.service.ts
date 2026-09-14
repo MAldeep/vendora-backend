@@ -582,4 +582,56 @@ export class AuthServices {
       refreshToken,
     };
   }
+  static async deleteUser(ownerId: string, userId: string, tenantId: string) {
+    if (ownerId === userId) {
+      throw new AppError(
+        "Owners cannot remove themselves from their tenant",
+        400,
+      );
+    }
+    const tenant = await prisma.tenant.findFirst({
+      where: {
+        id: tenantId,
+        ownerId: ownerId,
+      },
+      include: {
+        owner: {
+          select: { isActive: true },
+        },
+      },
+    });
+    if (!tenant) {
+      throw new AppError(
+        "Tenant not found or you are not authorized to manage it",
+        403,
+      );
+    }
+
+    if (!tenant.owner?.isActive) {
+      throw new AppError("Owner account is deactivated", 403);
+    }
+    const membership = await prisma.tenantUserRole.findUnique({
+      where: {
+        userId_tenantId: {
+          userId,
+          tenantId,
+        },
+      },
+    });
+    if (!membership) {
+      throw new AppError("User is not a member of this tenant", 404);
+    }
+
+    await prisma.tenantUserRole.delete({
+      where: {
+        userId_tenantId: {
+          userId,
+          tenantId,
+        },
+      },
+    });
+    return {
+      message: "User removed from tenant successfully",
+    };
+  }
 }
