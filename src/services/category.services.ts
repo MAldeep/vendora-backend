@@ -67,7 +67,7 @@ export class CategoryServices {
     });
     return {
       message: "Category Created Successfully !",
-      category: newCategory,
+      data: newCategory,
     };
   }
   // get all
