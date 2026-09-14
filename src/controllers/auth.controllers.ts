@@ -10,13 +10,13 @@ import { AppError } from "../utils/appError.js";
 const refreshTokenCookiesOptions: CookieOptions = {
   httpOnly: true,
   secure: env.NODE_ENV === "production",
-  sameSite: "strict",
+  sameSite: "lax",
   maxAge: 7 * 24 * 60 * 60 * 1000,
 };
 const accessTokenCookiesOptions: CookieOptions = {
   httpOnly: true,
   secure: env.NODE_ENV === "production",
-  sameSite: "strict",
+  sameSite: "lax",
   maxAge: 15 * 60 * 1000,
 };
 export class AuthController {
@@ -100,24 +100,29 @@ export class AuthController {
       },
     });
   });
+  // me
   static getMe = catchAsync(async (req: Request, res: Response) => {
-    const { id } = req.params;
-    const me = await AuthServices.getMe(id as string);
+    const id = req.user?.id;
+    if (!id) {
+      throw new AppError("User ID missing from request context", 400);
+    }
+    const me = await AuthServices.getMe(id);
     res.status(200).json({
       status: "success",
       message: "User Detected Successfully !",
       data: me,
     });
   });
+  // forget password
   static forgotPassword = catchAsync(async (req: Request, res: Response) => {
     const email = req.body;
-    const { message, resetToken } = await AuthServices.forgotPassword(email);
+    const { message } = await AuthServices.forgotPassword(email);
     res.status(200).json({
       status: "success",
       message: message,
-      token: resetToken,
     });
   });
+  // reset password
   static resetPassword = catchAsync(async (req: Request, res: Response) => {
     const data = req.body;
     const { message } = await AuthServices.resetPassword(data);
@@ -126,6 +131,7 @@ export class AuthController {
       message: message,
     });
   });
+  // invite users
   static inviteUser = catchAsync(async (req: Request, res: Response) => {
     const ownerUserId = req.user?.id;
 
@@ -139,15 +145,13 @@ export class AuthController {
     res.status(200).json({
       status: "success",
       message: message,
-      data: {
-        invitationToken: invitationToken,
-      },
     });
   });
+  // accept invitation
   static acceptInvitation = catchAsync(async (req: Request, res: Response) => {
     const data = req.body;
 
-    const { accessToken, role, user, refreshToken } =
+    const { accessToken, user, refreshToken } =
       await AuthServices.acceptInvitation(data);
 
     res.cookie("refreshToken", refreshToken, refreshTokenCookiesOptions);
@@ -158,9 +162,21 @@ export class AuthController {
       message: "Invitation accepted and account setup completed successfully!",
       data: {
         user: user,
-        role: role,
         accessToken: accessToken,
       },
+    });
+  });
+  // logout
+  static logout = catchAsync(async (_req: Request, res: Response) => {
+    res.clearCookie("accessToken", { ...accessTokenCookiesOptions, maxAge: 0 });
+    res.clearCookie("refreshToken", {
+      ...refreshTokenCookiesOptions,
+      maxAge: 0,
+    });
+
+    res.status(200).json({
+      status: "success",
+      message: "Logged out successfully!",
     });
   });
 }

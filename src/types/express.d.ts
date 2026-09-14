@@ -1,4 +1,4 @@
-import { TenantRole, User } from "@prisma/client";
+import { TenantRole, TenantUserRole, CustomRole, User } from "@prisma/client";
 import { JwtPayload } from "../utils/auth.js";
 
 declare global {
@@ -8,6 +8,10 @@ declare global {
       tokenPayload?: JwtPayload & { iat?: number };
       tenantId?: string;
       tenantRole?: TenantRole;
+
+      tenantUserRole?: TenantUserRole & {
+        customRole?: CustomRole | null;
+      };
     }
   }
 }

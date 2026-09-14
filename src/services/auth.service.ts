@@ -227,7 +227,7 @@ export class AuthServices {
   }
 
   // Get Me
-  static async getMe(userId: string) {
+  static async getMe(userId: string, activeTenantId?: string) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -254,6 +254,8 @@ export class AuthServices {
             },
             customRole: {
               select: {
+                id: true,
+                name: true,
                 permissions: true,
               },
             },
@@ -283,14 +285,21 @@ export class AuthServices {
         tenantIsActive: item.tenant.isActive,
         role: item.role,
         permissions,
+        customRoleName: item.customRole?.name,
+        customRoleId: item.customRole?.id,
       };
     });
-
+    const activeTenant = activeTenantId
+      ? formattedTenants.find((t) => t.tenantId === activeTenantId) ||
+        formattedTenants[0] ||
+        null
+      : formattedTenants[0] || null;
     const { tenantRoles, ...userData } = user;
 
     return {
       ...userData,
       tenants: formattedTenants,
+      activeTenant,
     };
   }
 
@@ -362,23 +371,59 @@ export class AuthServices {
   // Invite user by owner/manager
   static async inviteUser(
     ownerUserId: string,
-    { tenantId, email, role }: InviteUserInput,
+    { tenantId, email, role, customRoleId }: InviteUserInput,
   ) {
     const requesterRole = await prisma.tenantUserRole.findUnique({
       where: {
         userId_tenantId: { userId: ownerUserId, tenantId },
       },
+      include: {
+        customRole: true,
+      },
     });
-
-    if (
-      !requesterRole ||
-      (requesterRole.role !== TenantRole.OWNER &&
-        requesterRole.role !== TenantRole.MANAGER)
-    ) {
+    if (!requesterRole) {
       throw new AppError(
         "You do not have permission to invite members to this store.",
         403,
       );
+    }
+    const isOwnerOrManager =
+      requesterRole?.role === TenantRole.OWNER ||
+      requesterRole?.role === TenantRole.MANAGER;
+
+    const userPermissions =
+      (requesterRole.customRole?.permissions as string[]) || [];
+
+    const hasCustomInvitePermission =
+      requesterRole.role === TenantRole.CUSTOM &&
+      (userPermissions.includes("users:invite") ||
+        userPermissions.includes("manage_users"));
+
+    if (!isOwnerOrManager && !hasCustomInvitePermission) {
+      throw new AppError(
+        "You do not have permission to invite members to this store.",
+        403,
+      );
+    }
+
+    if (role === TenantRole.CUSTOM) {
+      if (!customRoleId) {
+        throw new AppError(
+          "customRoleId is required when assigning a custom role.",
+          400,
+        );
+      }
+
+      const validCustomRole = await prisma.customRole.findFirst({
+        where: { id: customRoleId, tenantId },
+      });
+
+      if (!validCustomRole) {
+        throw new AppError(
+          "The specified custom role does not exist for this store.",
+          404,
+        );
+      }
     }
 
     const existingMember = await prisma.user.findFirst({
@@ -394,7 +439,12 @@ export class AuthServices {
       throw new AppError("User is already a member of this store.", 400);
     }
 
-    const invitePayload = { email, tenantId, role };
+    const invitePayload = {
+      email,
+      tenantId,
+      role,
+      customRoleId: role === TenantRole.CUSTOM ? customRoleId : null,
+    };
     const invitationToken = jwt.sign(invitePayload, env.JWT_ACCESS_SECRET, {
       expiresIn: "48h",
     });
@@ -409,38 +459,47 @@ export class AuthServices {
 
   // Accept Invitation
   static async acceptInvitation(data: AcceptInvitationInput) {
-    let decoded: { email: string; tenantId: string; role: TenantRole };
-
+    let decoded: {
+      email: string;
+      tenantId: string;
+      role: TenantRole;
+      customRoleId?: string | null;
+    };
+    // Verify Token
     try {
       decoded = jwt.verify(data.token, env.JWT_ACCESS_SECRET) as {
         email: string;
         tenantId: string;
         role: TenantRole;
+        customRoleId?: string | null;
       };
     } catch (_error) {
       throw new AppError("Invalid or expired invitation token.", 400);
     }
 
+    // Get The tenant and check it
     const tenant = await prisma.tenant.findUnique({
       where: { id: decoded.tenantId },
     });
 
     if (!tenant || !tenant.isActive) {
       throw new AppError(
-        "The store accepting this invitation no longer exists or is inactive.",
+        "The store associated with this invitation no longer exists or is inactive.",
         404,
       );
     }
 
+    // Transaction
     const result = await prisma.$transaction(async (tx) => {
       let user = await tx.user.findUnique({
         where: { email: decoded.email },
       });
 
+      // if new user
       if (!user) {
         if (!data.password || !data.fullName) {
           throw new AppError(
-            "Full name and password are required for new accounts.",
+            "Full name and password are required to set up your account.",
             400,
           );
         }
@@ -455,7 +514,7 @@ export class AuthServices {
         });
       }
 
-      // Check if role relation already exists
+      // Check if the user already signed in this tenant
       const existingRole = await tx.tenantUserRole.findUnique({
         where: {
           userId_tenantId: {
@@ -469,17 +528,44 @@ export class AuthServices {
         throw new AppError("You are already a member of this store.", 400);
       }
 
+      // check custom role possibility (scoped to this tenant)
+      if (decoded.role === TenantRole.CUSTOM && decoded.customRoleId) {
+        const customRoleExists = await tx.customRole.findFirst({
+          where: {
+            id: decoded.customRoleId,
+            tenantId: decoded.tenantId,
+          },
+        });
+
+        if (!customRoleExists) {
+          throw new AppError(
+            "The custom role associated with this invitation is no longer available.",
+            400,
+          );
+        }
+      }
+
+      // create the role of the user
       const tenantUserRole = await tx.tenantUserRole.create({
         data: {
           userId: user.id,
           tenantId: decoded.tenantId,
           role: decoded.role,
+          customRoleId:
+            decoded.role === TenantRole.CUSTOM ? decoded.customRoleId : null,
         },
       });
 
       return { user, tenantUserRole };
     });
 
+    // Fetch unified user structure
+    const fullUserData = await AuthServices.getMe(
+      result.user.id,
+      decoded.tenantId,
+    );
+
+    // Auto-Login Tokens
     const tokenPayload: JwtPayload = {
       userId: result.user.id,
       email: result.user.email,
@@ -490,13 +576,8 @@ export class AuthServices {
     const refreshToken = generateRefreshToken(tokenPayload);
 
     return {
-      user: {
-        id: result.user.id,
-        email: result.user.email,
-        fullName: result.user.fullName,
-        userType: result.user.userType,
-      },
-      role: result.tenantUserRole.role,
+      message: "Invitation accepted successfully.",
+      user: fullUserData,
       accessToken,
       refreshToken,
     };

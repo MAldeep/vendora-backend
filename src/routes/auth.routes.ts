@@ -15,13 +15,14 @@ import { protect } from "../middleware/auth.middleware.js";
 
 const router = Router();
 // Send Mail => user
+
+/* PUBLIC REGISTERATION AND VERIFICATION */
+// send Mail => Owner
 router.post(
   "/register/user/init",
   validate(registerUserSchema),
   AuthController.registerUserInit,
 );
-
-// send Mail => Owner
 router.post(
   "/register/owner/init",
   validate(registerTenantOwnerSchema),
@@ -33,10 +34,14 @@ router.post(
   validate(verifyEmailSchema),
   AuthController.verifyEmailAndRegister,
 );
+
+/* AUTHENTICATION & SESSION MANAGEMENT */
 router.post("/login", validate(loginSchema), AuthController.login);
 
 router.post("/refresh-token", AuthController.refreshToken);
+router.post("/logout", AuthController.logout);
 
+/* PASSWORD RECOVERY */
 router.post(
   "/forgot-password",
   validate(forgotPasswordSchema),
@@ -48,6 +53,8 @@ router.post(
   validate(resetPasswordSchema),
   AuthController.resetPassword,
 );
+
+/* INVITATIONS & PROTECTED ROUTES */
 router.post(
   "/accept-invitation",
   validate(acceptInvitationSchema),

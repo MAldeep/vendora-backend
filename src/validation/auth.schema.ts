@@ -98,25 +98,39 @@ export const acceptInvitationSchema = z.object({
   }),
 });
 export const inviteUserSchema = z.object({
-  body: z.object({
-    tenantId: z
-      .string({
-        error: "Tenant ID is required.",
-      })
-      .min(1, "Tenant ID cannot be empty."),
+  body: z
+    .object({
+      tenantId: z
+        .string({
+          error: "Tenant ID is required.",
+        })
+        .min(1, "Tenant ID cannot be empty."),
 
-    email: z
-      .string({
-        error: "Email is required.",
-      })
-      .email("Invalid email address format.")
-      .toLowerCase()
-      .trim(),
+      email: z
+        .string({
+          error: "Email is required.",
+        })
+        .email("Invalid email address format.")
+        .toLowerCase()
+        .trim(),
 
-    role: z.nativeEnum(TenantRole, {
-      error: `Invalid tenant role. Allowed values: ${Object.values(TenantRole).join(", ")}`,
+      role: z.nativeEnum(TenantRole, {
+        error: `Invalid tenant role. Allowed values: ${Object.values(TenantRole).join(", ")}`,
+      }),
+
+      customRoleId: z.string().trim().optional().nullable(),
+    })
+    .superRefine((data, ctx) => {
+      if (data.role === TenantRole.CUSTOM) {
+        if (!data.customRoleId || data.customRoleId.trim() === "") {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "customRoleId is required when role is set to CUSTOM.",
+            path: ["customRoleId"],
+          });
+        }
+      }
     }),
-  }),
 });
 export type RegisterUserInput = z.infer<typeof registerUserSchema>["body"];
 export type RegisterTenantOwnerInput = z.infer<

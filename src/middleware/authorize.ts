@@ -51,7 +51,7 @@ export const requirePermission = (...requiredPermissions: Permission[]) => {
       }
 
       if (tenantUserRole.role === TenantRole.OWNER) {
-        (req as any).tenantUserRole = tenantUserRole;
+        req.tenantUserRole = tenantUserRole;
         return next();
       }
 
@@ -79,7 +79,7 @@ export const requirePermission = (...requiredPermissions: Permission[]) => {
         );
       }
 
-      (req as any).tenantUserRole = tenantUserRole;
+      req.tenantUserRole = tenantUserRole;
 
       next();
     } catch (error) {
