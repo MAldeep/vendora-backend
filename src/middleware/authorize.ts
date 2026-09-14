@@ -3,16 +3,12 @@ import { Permission, TenantRole, UserType } from "@prisma/client";
 import prisma from "../config/prisma.js";
 import { DEFAULT_ROLE_PERMISSIONS } from "../config/permissions.js";
 import { AppError } from "../utils/appError.js";
+import { getTenantId } from "../context/tenant.context.js";
 
 export const requirePermission = (...requiredPermissions: Permission[]) => {
   return async (req: Request, _res: Response, next: NextFunction) => {
     try {
       const userId = req.user?.id;
-
-      const tenantId =
-        typeof req.params.tenantId === "string"
-          ? req.params.tenantId
-          : undefined;
 
       if (!userId) {
         throw new AppError("Unauthorized. User not authenticated.", 401);
@@ -22,8 +18,20 @@ export const requirePermission = (...requiredPermissions: Permission[]) => {
         return next();
       }
 
+      const tenantId =
+        getTenantId() ||
+        (typeof req.params.tenantId === "string"
+          ? req.params.tenantId
+          : undefined) ||
+        (typeof req.headers["x-tenant-id"] === "string"
+          ? req.headers["x-tenant-id"]
+          : undefined);
+
       if (!tenantId) {
-        throw new AppError("Tenant ID header (x-tenant-id) is required.", 400);
+        throw new AppError(
+          "Tenant context or x-tenant-id header/param is required.",
+          400,
+        );
       }
 
       const tenantUserRole = await prisma.tenantUserRole.findUnique({
@@ -42,16 +50,22 @@ export const requirePermission = (...requiredPermissions: Permission[]) => {
         );
       }
 
-      let userPermissions: string[] = [];
+      if (tenantUserRole.role === TenantRole.OWNER) {
+        (req as any).tenantUserRole = tenantUserRole;
+        return next();
+      }
+
+      let userPermissions: Permission[] = [];
 
       if (tenantUserRole.role === TenantRole.CUSTOM) {
         if (!tenantUserRole.customRole) {
           throw new AppError("Custom role configuration is missing.", 500);
         }
-        userPermissions = tenantUserRole.customRole.permissions;
+        userPermissions = tenantUserRole.customRole.permissions as Permission[];
       } else {
         const roleKey = tenantUserRole.role as Exclude<TenantRole, "CUSTOM">;
-        userPermissions = DEFAULT_ROLE_PERMISSIONS[roleKey] || [];
+        userPermissions =
+          (DEFAULT_ROLE_PERMISSIONS[roleKey] as Permission[]) || [];
       }
 
       const hasPermission = requiredPermissions.every((perm) =>
@@ -64,6 +78,8 @@ export const requirePermission = (...requiredPermissions: Permission[]) => {
           403,
         );
       }
+
+      (req as any).tenantUserRole = tenantUserRole;
 
       next();
     } catch (error) {
