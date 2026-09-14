@@ -1,6 +1,9 @@
 import prisma from "../config/prisma.js";
 import { AppError } from "../utils/appError.js";
-import { CreateCustomRoleInput } from "../validation/customRole.schemas.js";
+import {
+  CreateCustomRoleInput,
+  UpdateCustomRoleInput,
+} from "../validation/customRole.schemas.js";
 
 export class CustomRoleServices {
   // create
@@ -106,5 +109,88 @@ export class CustomRoleServices {
     };
   }
   // update
+  static async update(
+    tenantId: string,
+    customRoleId: string,
+    updateData: UpdateCustomRoleInput,
+  ) {
+    const existingRole = await prisma.customRole.findFirst({
+      where: {
+        id: customRoleId,
+        tenantId: tenantId,
+      },
+    });
+
+    if (!existingRole) {
+      throw new AppError("Custom role not found in this store", 404);
+    }
+
+    if (
+      updateData.name &&
+      updateData.name.toLowerCase() !== existingRole.name.toLowerCase()
+    ) {
+      const nameConflict = await prisma.customRole.findFirst({
+        where: {
+          tenantId,
+          id: { not: customRoleId },
+          name: {
+            equals: updateData.name,
+            mode: "insensitive",
+          },
+        },
+      });
+
+      if (nameConflict) {
+        throw new AppError(
+          "A role with this name already exists in this store",
+          400,
+        );
+      }
+    }
+
+    const updatedRole = await prisma.customRole.update({
+      where: { id: customRoleId },
+      data: updateData,
+    });
+
+    return {
+      message: "Role updated successfully",
+      data: updatedRole,
+    };
+  }
   //delete
+  static async delete(tenantId: string, customRoleId: string) {
+    const customRole = await prisma.customRole.findFirst({
+      where: {
+        id: customRoleId,
+        tenantId: tenantId,
+      },
+      select: {
+        id: true,
+        _count: {
+          select: { tenantUserRoles: true },
+        },
+      },
+    });
+
+    if (!customRole) {
+      throw new AppError("Custom role not found in this store", 404);
+    }
+
+    if (customRole._count.tenantUserRoles > 0) {
+      throw new AppError(
+        `Cannot delete this role because it is currently assigned to ${customRole._count.tenantUserRoles} user(s). Please reassign them first.`,
+        400,
+      );
+    }
+
+    const deletedRole = await prisma.customRole.delete({
+      where: { id: customRoleId },
+    });
+
+    return {
+      message: "Custom role deleted successfully!",
+      data: deletedRole,
+    };
+  }
 }
