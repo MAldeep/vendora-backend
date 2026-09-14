@@ -102,6 +102,7 @@ model Tenant {
   updatedAt    DateTime         @updatedAt @map("updated_at")
 
   products     Product[]
+  categories   Category[]
   tenantRoles  TenantUserRole[]
   customRoles  CustomRole[]
   tenantOrders TenantOrder[]
@@ -150,15 +151,26 @@ model Category {
   id        String     @id @default(uuid())
   name      String
   slug      String     @unique
-  parentId  String?    @map("parent_id")
+  description String?
+  isActive    Boolean  @default(true)
+
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
   createdAt DateTime   @default(now()) @map("created_at")
   updatedAt DateTime   @updatedAt @map("updated_at")
-
-  products  Product[]
+  
+  parentId  String?    @map("parent_id")
   parent    Category?  @relation("CategoryToCategory", fields: [parentId], references: [id], onDelete: SetNull)
+  
+  products  Product[]
   children  Category[] @relation("CategoryToCategory")
 
   @@map("categories")
+  @@unique([tenantId, slug])
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@index([parentId])
 }
 
 model Product {
