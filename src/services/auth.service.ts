@@ -1,4 +1,4 @@
-import { Permission, TenantRole, UserType } from "@prisma/client";
+import { TenantRole, UserType } from "@prisma/client";
 import prisma from "../config/prisma.js";
 import { AppError } from "../utils/appError.js";
 import {
