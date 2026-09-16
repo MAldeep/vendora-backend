@@ -40,4 +40,23 @@ export class ProductControllers {
       meta,
     });
   });
+  static getById = catchAsync(async (req: Request, res: Response) => {
+    const tenantId = req.tenantId;
+    if (!tenantId) {
+      throw new AppError("Tenant ID IS REQUIRED !", 400);
+    }
+    const productId = req.params.id;
+    if (!productId) {
+      throw new AppError("Product ID IS REQUIRED !", 400);
+    }
+    const { data, message } = await ProductServices.getById(
+      tenantId,
+      productId as string,
+    );
+    res.status(200).json({
+      status: "success",
+      message,
+      data,
+    });
+  });
 }

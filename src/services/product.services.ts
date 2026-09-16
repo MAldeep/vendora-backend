@@ -151,4 +151,35 @@ export class ProductServices {
       data: products,
     };
   }
+  static async getById(tenantId: string, productId: string) {
+    const product = await prisma.product.findFirst({
+      where: {
+        id: productId,
+        tenantId,
+      },
+      include: {
+        category: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
+        images: {
+          orderBy: {
+            position: "asc",
+          },
+        },
+      },
+    });
+
+    if (!product) {
+      throw new AppError("Product not found", 404);
+    }
+
+    return {
+      message: "Product retrieved successfully",
+      data: product,
+    };
+  }
 }

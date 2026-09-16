@@ -2,7 +2,10 @@ import { Router } from "express";
 import { protect } from "../middleware/auth.middleware.js";
 import { requirePermission } from "../middleware/authorize.js";
 import { validate } from "../middleware/validate.middleware.js";
-import { createProductSchema } from "../validation/product.schemas.js";
+import {
+  createProductSchema,
+  productIdParamSchema,
+} from "../validation/product.schemas.js";
 import { ProductControllers } from "../controllers/product.controllers.js";
 import { uploadProductImages } from "../middleware/upload.middleware.js";
 
@@ -19,4 +22,11 @@ router
     ProductControllers.create,
   );
 
+router
+  .route("/:id")
+  .get(
+    requirePermission("VIEW_PRODUCTS"),
+    validate(productIdParamSchema),
+    ProductControllers.getById,
+  );
 export default router;
