@@ -18,7 +18,7 @@ export class ProductServices {
     productData: CreateProductInput,
     files?: Express.Multer.File[],
   ) {
-    // check if category exists in this tenant
+    // check if category found
     const existingCategory = await prisma.category.findFirst({
       where: {
         id: productData.categoryId,
@@ -29,9 +29,11 @@ export class ProductServices {
     if (!existingCategory) {
       throw new AppError("Category not found in this store", 404);
     }
-    // no slug ? generate one
+
+    // generate slug if not provided
     const generatedSlug = productData.slug || slugify(productData.title);
-    // check if product already exists
+
+    // check if slug or sku already exists
     const existingProduct = await prisma.product.findFirst({
       where: {
         tenantId,
@@ -51,50 +53,101 @@ export class ProductServices {
         400,
       );
     }
-    // create product without images first
-    const productWithoutImgs = await prisma.product.create({
-      data: {
-        tenantId,
-        categoryId: productData.categoryId,
-        title: productData.title,
-        slug: generatedSlug,
-        description: productData.description,
-        price: productData.price,
-        compareAtPrice: productData.compareAtPrice,
-        sku: productData.sku,
-        status: (productData.status as ProductStatus) || "DRAFT",
-        isFeatured: productData.isFeatured ?? false,
-      },
-    });
-    // if images in req.files => add them to product
-    if (files && files.length > 0) {
-      const uploadedImages = await processAndUploadMultipleImages(
-        files,
-        `tenants/${tenantId}/products`,
-      );
 
-      await prisma.productImage.createMany({
-        data: uploadedImages.map((img, index) => ({
-          productId: productWithoutImgs.id,
-          url: img.url,
-          publicId: img.publicId,
-          altText: productWithoutImgs.title,
-          position: index,
-        })),
+    // ckeck variants' sku
+    if (productData.variants && productData.variants.length > 0) {
+      const variantSkus = productData.variants.map((v) => v.sku);
+
+      // ckeck duplicate skus
+      const hasDuplicates = new Set(variantSkus).size !== variantSkus.length;
+      if (hasDuplicates) {
+        throw new AppError(
+          "Duplicate SKUs found inside the provided variants list",
+          400,
+        );
+      }
+
+      // ckeck if sku already exists
+      const existingVariantSku = await prisma.productVariant.findFirst({
+        where: {
+          tenantId,
+          sku: { in: variantSkus },
+        },
       });
+
+      if (existingVariantSku) {
+        throw new AppError(
+          `Variant SKU "${existingVariantSku.sku}" already exists in this store`,
+          400,
+        );
+      }
     }
-    // return the full product any way
+
+    // creation transaction
+    const createdProduct = await prisma.$transaction(async (tx) => {
+      // create product
+      const product = await tx.product.create({
+        data: {
+          tenantId,
+          categoryId: productData.categoryId,
+          title: productData.title,
+          slug: generatedSlug,
+          description: productData.description,
+          price: productData.price,
+          compareAtPrice: productData.compareAtPrice,
+          sku: productData.sku,
+          status: (productData.status as ProductStatus) || "DRAFT",
+          isFeatured: productData.isFeatured ?? false,
+        },
+      });
+
+      // if variants => add them
+      if (productData.variants && productData.variants.length > 0) {
+        await tx.productVariant.createMany({
+          data: productData.variants.map((v) => ({
+            tenantId,
+            productId: product.id,
+            title: v.title,
+            sku: v.sku,
+            price: v.price ?? null,
+            stockQuantity: v.stockQuantity ?? 0,
+            attributes: v.attributes,
+          })),
+        });
+      }
+
+      // product images
+      if (files && files.length > 0) {
+        const uploadedImages = await processAndUploadMultipleImages(
+          files,
+          `tenants/${tenantId}/products`,
+        );
+
+        await tx.productImage.createMany({
+          data: uploadedImages.map((img, index) => ({
+            productId: product.id,
+            url: img.url,
+            publicId: img.publicId,
+            altText: product.title,
+            position: index,
+          })),
+        });
+      }
+
+      return product;
+    });
+
+    // full product data
     const product = await prisma.product.findUnique({
-      where: { id: productWithoutImgs.id },
+      where: { id: createdProduct.id },
       include: {
         category: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-          },
+          select: { id: true, name: true, slug: true },
         },
-        images: true,
+        images: {
+          orderBy: { position: "asc" },
+        },
+        variants: true,
       },
     });
 
@@ -134,6 +187,7 @@ export class ProductServices {
               images: {
                 orderBy: { position: "asc" },
               },
+              variants: true,
             }
           : undefined,
       }),
@@ -176,6 +230,7 @@ export class ProductServices {
             position: "asc",
           },
         },
+        variants: true,
       },
     });
 
@@ -324,6 +379,7 @@ export class ProductServices {
         images: {
           orderBy: { position: "asc" },
         },
+        variants: true,
       },
     });
 

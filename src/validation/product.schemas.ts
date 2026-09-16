@@ -3,7 +3,22 @@ import { z } from "zod";
 const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export const ProductStatusEnum = z.enum(["DRAFT", "ACTIVE", "ARCHIVED"]);
+const productVariantItemSchema = z.object({
+  title: z
+    .string({ error: "Variant title is required" })
+    .trim()
+    .min(2)
+    .max(100),
 
+  sku: z.string({ error: "Variant SKU is required" }).trim().min(3).max(50),
+
+  price: z.coerce.number().positive().optional(),
+
+  stockQuantity: z.coerce.number().int().min(0).default(0),
+
+  // parse or check JSON record
+  attributes: z.record(z.string(), z.union([z.string(), z.number()])),
+});
 // 1. Create Product Schema
 export const createProductSchema = z.object({
   body: z
@@ -52,6 +67,7 @@ export const createProductSchema = z.object({
       status: ProductStatusEnum.optional(),
 
       isFeatured: z.coerce.boolean().optional(),
+      variants: z.array(productVariantItemSchema).optional(),
     })
     .refine(
       (data) => {
