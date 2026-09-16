@@ -1,6 +1,9 @@
 import prisma from "../config/prisma.js";
 import { AppError } from "../utils/appError.js";
-import { CreateVariantInput } from "../validation/productVariant.schema.js";
+import {
+  CreateVariantInput,
+  UpdateVariantInput,
+} from "../validation/productVariant.schema.js";
 
 export class ProductVariantsServices {
   // create
@@ -86,5 +89,56 @@ export class ProductVariantsServices {
     };
   }
   // update
+  static async update(
+    tenantId: string,
+    productId: string,
+    variantId: string,
+    updateData: UpdateVariantInput,
+  ) {
+    // check if variant exists
+    const existingVariant = await prisma.productVariant.findFirst({
+      where: {
+        id: variantId,
+        productId,
+        tenantId,
+      },
+    });
+    if (!existingVariant) {
+      throw new AppError("Product variant not found in this store", 404);
+    }
+    // check if sku exists in tenant already
+    if (updateData.sku && updateData.sku !== existingVariant.sku) {
+      const skuTaken = await prisma.productVariant.findFirst({
+        where: {
+          tenantId,
+          sku: updateData.sku,
+          id: { not: variantId },
+        },
+      });
+
+      if (skuTaken) {
+        throw new AppError(
+          `Variant SKU "${updateData.sku}" already exists in this store`,
+          400,
+        );
+      }
+    }
+    const variant = await prisma.productVariant.update({
+      where: { id: variantId },
+      data: {
+        ...(updateData.title && { title: updateData.title }),
+        ...(updateData.sku && { sku: updateData.sku }),
+        ...(updateData.price !== undefined && { price: updateData.price }),
+        ...(updateData.stockQuantity !== undefined && {
+          stockQuantity: updateData.stockQuantity,
+        }),
+        ...(updateData.attributes && { attributes: updateData.attributes }),
+      },
+    });
+    return {
+      message: "Product variant updated successfully!",
+      data: variant,
+    };
+  }
   // delete
 }

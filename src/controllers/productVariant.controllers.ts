@@ -2,6 +2,7 @@ import { ProductVariantsServices } from "../services/productVariants.services.js
 import { AppError } from "../utils/appError.js";
 import { catchAsync } from "../utils/catchAsync.js";
 import { Request, Response } from "express";
+import { UpdateVariantInput } from "../validation/productVariant.schema.js";
 export class ProductVariantsControllers {
   static create = catchAsync(async (req: Request, res: Response) => {
     const tenantId = req.tenantId;
@@ -59,6 +60,32 @@ export class ProductVariantsControllers {
       tenantId,
       id as string,
       variantId as string,
+    );
+
+    res.status(200).json({
+      status: "success",
+      message,
+      data,
+    });
+  });
+  static update = catchAsync(async (req: Request, res: Response) => {
+    const tenantId = req.tenantId;
+    if (!tenantId) {
+      throw new AppError("Tenant ID is required", 400);
+    }
+
+    const { id, variantId } = req.params;
+    if (!id || !variantId) {
+      throw new AppError("Product ID and Variant ID are required", 400);
+    }
+
+    const updateData: UpdateVariantInput = req.body;
+
+    const { data, message } = await ProductVariantsServices.update(
+      tenantId,
+      id as string,
+      variantId as string,
+      updateData,
     );
 
     res.status(200).json({
