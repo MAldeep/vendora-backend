@@ -9,10 +9,19 @@ import {
 } from "../validation/product.schemas.js";
 import { ProductControllers } from "../controllers/product.controllers.js";
 import { uploadProductImages } from "../middleware/upload.middleware.js";
+import variantRouter from "./productVariants.routes.js";
 
 const router = Router();
 
 router.use(protect);
+
+/*
+  Variants Routes
+*/
+router.use("/:id/variants", variantRouter);
+/*
+  Product Routes
+*/
 router
   .route("/")
   .get(requirePermission("VIEW_PRODUCTS"), ProductControllers.getAll)
