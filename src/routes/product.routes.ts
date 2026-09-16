@@ -1,0 +1,21 @@
+import { Router } from "express";
+import { protect } from "../middleware/auth.middleware.js";
+import { requirePermission } from "../middleware/authorize.js";
+import { validate } from "../middleware/validate.middleware.js";
+import { createProductSchema } from "../validation/product.schemas.js";
+import { ProductControllers } from "../controllers/product.controllers.js";
+import { uploadProductImages } from "../middleware/upload.middleware.js";
+
+const router = Router();
+
+router.use(protect);
+router
+  .route("/")
+  .post(
+    requirePermission("CREATE_PRODUCT"),
+    uploadProductImages,
+    validate(createProductSchema),
+    ProductControllers.create,
+  );
+
+export default router;

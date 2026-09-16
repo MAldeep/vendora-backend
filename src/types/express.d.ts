@@ -12,6 +12,10 @@ declare global {
       tenantUserRole?: TenantUserRole & {
         customRole?: CustomRole | null;
       };
+
+      files?:
+        | Express.Multer.File[]
+        | { [fieldname: string]: Express.Multer.File[] };
     }
   }
 }
