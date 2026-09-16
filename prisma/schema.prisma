@@ -213,10 +213,11 @@ model ProductImage {
 
 model ProductVariant {
   id            String      @id @default(uuid())
+  tenantId      String      @map("tenant_id")
   productId     String      @map("product_id")
   product       Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
   title         String
-  sku           String      @unique
+  sku           String
   price         Decimal?    @db.Decimal(10, 2)
   stockQuantity Int         @default(0) @map("stock_quantity")
   attributes    Json        @db.JsonB
@@ -225,6 +226,7 @@ model ProductVariant {
 
   orderItems    OrderItem[]
 
+  @@unique([tenantId, sku])
   @@map("product_variants")
 }
 
