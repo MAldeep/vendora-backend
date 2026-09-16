@@ -203,8 +203,9 @@ model ProductImage {
   productId String   @map("product_id")
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   url       String 
+  publicId  String   @map("public_id") 
   altText   String?  @map("alt_text")
-  sortOrder Int      @default(0) @map("sort_order")
+  position  Int      @default(0) 
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("product_images")
