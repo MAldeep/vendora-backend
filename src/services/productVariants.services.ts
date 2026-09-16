@@ -141,4 +141,22 @@ export class ProductVariantsServices {
     };
   }
   // delete
+  static async delete(tenantId: string, productId: string, variantId: string) {
+    const existingVariant = await prisma.productVariant.findFirst({
+      where: {
+        id: variantId,
+        productId,
+        tenantId,
+      },
+    });
+    if (!existingVariant) {
+      throw new AppError("Product variant not found in this store", 404);
+    }
+    await prisma.productVariant.delete({
+      where: { id: variantId },
+    });
+    return {
+      message: "Product variant deleted successfully!",
+    };
+  }
 }

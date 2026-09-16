@@ -31,6 +31,10 @@ variantRouter
     requirePermission("UPDATE_PRODUCT"),
     validate(updateVariantSchema),
     ProductVariantsControllers.update,
+  )
+  .delete(
+    requirePermission("DELETE_PRODUCT"),
+    ProductVariantsControllers.delete,
   );
 
 export default variantRouter;
