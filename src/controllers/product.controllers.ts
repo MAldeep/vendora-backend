@@ -23,4 +23,21 @@ export class ProductControllers {
       data,
     });
   });
+  static getAll = catchAsync(async (req: Request, res: Response) => {
+    const tenantId = req.tenantId;
+    if (!tenantId) {
+      throw new AppError("Tenant ID IS REQUIRED !", 400);
+    }
+    const query = req.query;
+    const { data, message, meta } = await ProductServices.getAll(
+      tenantId,
+      query,
+    );
+    res.status(200).json({
+      status: "success",
+      message,
+      data,
+      meta,
+    });
+  });
 }

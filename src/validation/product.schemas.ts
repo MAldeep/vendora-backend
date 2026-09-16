@@ -3,12 +3,7 @@ import { z } from "zod";
 const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export const ProductStatusEnum = z.enum(["DRAFT", "ACTIVE", "ARCHIVED"]);
-const productImageSchema = z.object({
-  url: z.string().url("Invalid image URL"),
-  altText: z.string().optional(),
-  isPrimary: z.boolean().default(false),
-  position: z.number().int().nonnegative().optional(),
-});
+
 // 1. Create Product Schema
 export const createProductSchema = z.object({
   body: z

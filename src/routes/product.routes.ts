@@ -11,6 +11,7 @@ const router = Router();
 router.use(protect);
 router
   .route("/")
+  .get(requirePermission("VIEW_PRODUCTS"), ProductControllers.getAll)
   .post(
     requirePermission("CREATE_PRODUCT"),
     uploadProductImages,

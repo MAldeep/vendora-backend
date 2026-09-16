@@ -4,6 +4,7 @@ import { AppError } from "../utils/appError.js";
 import { slugify } from "../utils/slugify.js";
 import { CreateProductInput } from "../validation/product.schemas.js";
 import { processAndUploadMultipleImages } from "../config/cloudinary.js";
+import { PrismaAPIFeatures } from "../utils/apiFeatures.js";
 
 export class ProductServices {
   static async create(
@@ -94,6 +95,60 @@ export class ProductServices {
     return {
       message: "Product created successfully!",
       data: product,
+    };
+  }
+  static async getAll(tenantId: string, queryString: Record<string, any>) {
+    const features = new PrismaAPIFeatures(queryString, {
+      searchFields: ["title", "slug", "sku"],
+    })
+      .filter()
+      .sort()
+      .limitFields()
+      .paginate();
+
+    const { where, orderBy, take, skip, select } = features.build();
+
+    const tenantWhere = {
+      ...where,
+      tenantId,
+    };
+
+    const [products, total] = await Promise.all([
+      prisma.product.findMany({
+        where: tenantWhere,
+        orderBy,
+        take,
+        skip,
+        select,
+        include: !select
+          ? {
+              category: {
+                select: { id: true, name: true, slug: true },
+              },
+              images: {
+                orderBy: { position: "asc" },
+              },
+            }
+          : undefined,
+      }),
+      prisma.product.count({
+        where: tenantWhere,
+      }),
+    ]);
+
+    const page = Number(queryString.page) || 1;
+    const limit = Number(queryString.limit) || 10;
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      message: "Products retrieved successfully!",
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages,
+      },
+      data: products,
     };
   }
 }
