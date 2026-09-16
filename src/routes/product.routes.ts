@@ -5,6 +5,7 @@ import { validate } from "../middleware/validate.middleware.js";
 import {
   createProductSchema,
   productIdParamSchema,
+  updateProductSchema,
 } from "../validation/product.schemas.js";
 import { ProductControllers } from "../controllers/product.controllers.js";
 import { uploadProductImages } from "../middleware/upload.middleware.js";
@@ -28,5 +29,11 @@ router
     requirePermission("VIEW_PRODUCTS"),
     validate(productIdParamSchema),
     ProductControllers.getById,
+  )
+  .patch(
+    requirePermission("UPDATE_PRODUCT"),
+    uploadProductImages,
+    validate(updateProductSchema),
+    ProductControllers.update,
   );
 export default router;
