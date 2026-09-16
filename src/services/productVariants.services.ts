@@ -12,37 +12,62 @@ export class ProductVariantsServices {
     productId: string,
     data: CreateVariantInput,
   ) {
-    // check if product exists
+    // 1. Check if product exists along with its current variants
     const existingProduct = await prisma.product.findFirst({
       where: { id: productId, tenantId },
+      include: { variants: true },
     });
+
     if (!existingProduct) {
       throw new AppError("Product Not Found in This Store", 404);
     }
-    // check if variant exists
+
+    // 2. Check SKU Uniqueness across store
     const existingVariant = await prisma.productVariant.findFirst({
       where: {
         tenantId,
         sku: data.sku,
       },
     });
+
     if (existingVariant) {
-      throw new AppError("This Variant Already exists", 400);
+      throw new AppError("This Variant SKU already exists in this store", 400);
     }
-    const variant = await prisma.productVariant.create({
-      data: {
-        productId,
-        tenantId,
-        attributes: data.attributes,
-        sku: data.sku,
-        title: data.title,
-        price: data.price ?? null,
-        stockQuantity: data.stockQuantity ?? 0,
-      },
+
+    // 3. Create Variant & Cleanup Default Variant inside Transaction
+    const newVariant = await prisma.$transaction(async (tx) => {
+      // Check if current product has ONLY 1 Default Variant (Implicit/Simple Product state)
+      const hasSingleDefaultVariant =
+        existingProduct.variants.length === 1 &&
+        (existingProduct.variants[0].title === "Default" ||
+          !existingProduct.variants[0].attributes ||
+          Object.keys(existingProduct.variants[0].attributes as object)
+            .length === 0);
+
+      // If it was a simple product, remove the hidden default variant now!
+      if (hasSingleDefaultVariant) {
+        await tx.productVariant.delete({
+          where: { id: existingProduct.variants[0].id },
+        });
+      }
+
+      // Create the new explicit variant
+      return await tx.productVariant.create({
+        data: {
+          productId,
+          tenantId,
+          attributes: data.attributes,
+          sku: data.sku,
+          title: data.title,
+          price: data.price ?? existingProduct.price,
+          stockQuantity: data.stockQuantity ?? 0,
+        },
+      });
     });
+
     return {
-      message: "Product Variant Created Successfully !",
-      data: variant,
+      message: "Product Variant Created Successfully!",
+      data: newVariant,
     };
   }
   // get all

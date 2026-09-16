@@ -15,10 +15,10 @@ import { PrismaAPIFeatures } from "../utils/apiFeatures.js";
 export class ProductServices {
   static async create(
     tenantId: string,
-    productData: CreateProductInput,
+    productData: CreateProductInput & { stockQuantity?: number },
     files?: Express.Multer.File[],
   ) {
-    // check if category found
+    // 1. Check if category exists
     const existingCategory = await prisma.category.findFirst({
       where: {
         id: productData.categoryId,
@@ -30,10 +30,10 @@ export class ProductServices {
       throw new AppError("Category not found in this store", 404);
     }
 
-    // generate slug if not provided
+    // 2. Generate slug
     const generatedSlug = productData.slug || slugify(productData.title);
 
-    // check if slug or sku already exists
+    // 3. Check if slug or product SKU exists
     const existingProduct = await prisma.product.findFirst({
       where: {
         tenantId,
@@ -54,11 +54,14 @@ export class ProductServices {
       );
     }
 
-    // ckeck variants' sku
-    if (productData.variants && productData.variants.length > 0) {
-      const variantSkus = productData.variants.map((v) => v.sku);
+    // 4. Validate Variants SKUs (Explicit or Default)
+    const hasExplicitVariants =
+      productData.variants && productData.variants.length > 0;
 
-      // ckeck duplicate skus
+    if (hasExplicitVariants) {
+      const variantSkus = productData.variants!.map((v) => v.sku);
+
+      // Check internal duplicates
       const hasDuplicates = new Set(variantSkus).size !== variantSkus.length;
       if (hasDuplicates) {
         throw new AppError(
@@ -67,7 +70,7 @@ export class ProductServices {
         );
       }
 
-      // ckeck if sku already exists
+      // Check existing variants in DB
       const existingVariantSku = await prisma.productVariant.findFirst({
         where: {
           tenantId,
@@ -83,9 +86,9 @@ export class ProductServices {
       }
     }
 
-    // creation transaction
+    // 5. Creation Transaction
     const createdProduct = await prisma.$transaction(async (tx) => {
-      // create product
+      // A) Create Parent Product
       const product = await tx.product.create({
         data: {
           tenantId,
@@ -101,22 +104,36 @@ export class ProductServices {
         },
       });
 
-      // if variants => add them
-      if (productData.variants && productData.variants.length > 0) {
+      // B) Handle Variants Creation
+      if (hasExplicitVariants) {
+        // Create explicit variants provided by admin
         await tx.productVariant.createMany({
-          data: productData.variants.map((v) => ({
+          data: productData.variants!.map((v) => ({
             tenantId,
             productId: product.id,
             title: v.title,
             sku: v.sku,
-            price: v.price ?? null,
+            price: v.price ?? productData.price,
             stockQuantity: v.stockQuantity ?? 0,
             attributes: v.attributes,
           })),
         });
+      } else {
+        // CREATING IMPLICIT DEFAULT VARIANT (للمنتج البسيط)
+        await tx.productVariant.create({
+          data: {
+            tenantId,
+            productId: product.id,
+            title: "Default",
+            sku: productData.sku,
+            price: productData.price,
+            stockQuantity: productData.stockQuantity ?? 0,
+            attributes: {},
+          },
+        });
       }
 
-      // product images
+      // C) Handle Images
       if (files && files.length > 0) {
         const uploadedImages = await processAndUploadMultipleImages(
           files,
@@ -137,7 +154,7 @@ export class ProductServices {
       return product;
     });
 
-    // full product data
+    // 6. Return Full Product Data
     const product = await prisma.product.findUnique({
       where: { id: createdProduct.id },
       include: {
@@ -246,19 +263,20 @@ export class ProductServices {
   static async update(
     tenantId: string,
     id: string,
-    updateData: UpdateProductInput,
+    updateData: UpdateProductInput & { stockQuantity?: number },
     files?: Express.Multer.File[],
   ) {
-    // check if product found
+    // 1. Check if product exists with variants
     const existingProduct = await prisma.product.findFirst({
       where: { id, tenantId },
+      include: { variants: true },
     });
 
     if (!existingProduct) {
       throw new AppError("Product not found in this store", 404);
     }
 
-    // 2. check if category found
+    // 2. Check Category if provided
     if (
       updateData.categoryId &&
       updateData.categoryId !== existingProduct.categoryId
@@ -271,7 +289,7 @@ export class ProductServices {
       }
     }
 
-    // check if slug found
+    // 3. Check Slug if provided
     if (updateData.slug && updateData.slug !== existingProduct.slug) {
       const slugTaken = await prisma.product.findFirst({
         where: {
@@ -288,7 +306,7 @@ export class ProductServices {
       }
     }
 
-    // check if sku found
+    // 4. Check SKU if provided
     if (updateData.sku && updateData.sku !== existingProduct.sku) {
       const skuTaken = await prisma.product.findFirst({
         where: {
@@ -305,7 +323,7 @@ export class ProductServices {
       }
     }
 
-    // check if price < compareAtPrice
+    // 5. Compare At Price Validation
     const newPrice = updateData.price ?? Number(existingProduct.price);
     const newCompareAtPrice =
       updateData.compareAtPrice !== undefined
@@ -315,8 +333,8 @@ export class ProductServices {
           : undefined;
 
     if (
-      newCompareAtPrice &&
       newCompareAtPrice !== undefined &&
+      newCompareAtPrice !== null &&
       newCompareAtPrice <= newPrice
     ) {
       throw new AppError(
@@ -325,14 +343,13 @@ export class ProductServices {
       );
     }
 
-    // upload images if in the req
+    // 6. Handle Images Upload (Side Effect outside transaction for performance)
     if (files && files.length > 0) {
       const uploadedImages = await processAndUploadMultipleImages(
         files,
         `tenants/${tenantId}/products`,
       );
 
-      // get positions
       const lastImage = await prisma.productImage.findFirst({
         where: { productId: id },
         orderBy: { position: "desc" },
@@ -350,28 +367,58 @@ export class ProductServices {
       });
     }
 
-    // update product
-    const product = await prisma.product.update({
+    // 7. DB Update Transaction & Default Variant Sync Logic
+    await prisma.$transaction(async (tx) => {
+      // A) Update Parent Product fields
+      await tx.product.update({
+        where: { id },
+        data: {
+          ...(updateData.categoryId && { categoryId: updateData.categoryId }),
+          ...(updateData.title && { title: updateData.title }),
+          ...(updateData.slug && { slug: updateData.slug }),
+          ...(updateData.description !== undefined && {
+            description: updateData.description,
+          }),
+          ...(updateData.price !== undefined && { price: updateData.price }),
+          ...(updateData.compareAtPrice !== undefined && {
+            compareAtPrice: updateData.compareAtPrice,
+          }),
+          ...(updateData.sku && { sku: updateData.sku }),
+          ...(updateData.status && {
+            status: (updateData.status as ProductStatus) || "DRAFT",
+          }),
+          ...(updateData.isFeatured !== undefined && {
+            isFeatured: updateData.isFeatured,
+          }),
+        },
+      });
+
+      // B) Sync with Default Variant IF product is Simple Product (Single Default Variant)
+      const isSimpleProduct =
+        existingProduct.variants.length === 1 &&
+        (existingProduct.variants[0].title === "Default" ||
+          !existingProduct.variants[0].attributes ||
+          Object.keys(existingProduct.variants[0].attributes as object)
+            .length === 0);
+
+      if (isSimpleProduct) {
+        const defaultVariant = existingProduct.variants[0];
+        await tx.productVariant.update({
+          where: { id: defaultVariant.id },
+          data: {
+            ...(updateData.sku && { sku: updateData.sku }),
+            ...(updateData.price !== undefined && { price: updateData.price }),
+            ...(updateData.stockQuantity !== undefined && {
+              stockQuantity: updateData.stockQuantity,
+            }),
+          },
+        });
+      }
+    });
+
+    // 8. Fetch and return full updated product data
+    const updatedProduct = await prisma.product.findUnique({
       where: { id },
-      data: {
-        ...(updateData.categoryId && { categoryId: updateData.categoryId }),
-        ...(updateData.title && { title: updateData.title }),
-        ...(updateData.slug && { slug: updateData.slug }),
-        ...(updateData.description !== undefined && {
-          description: updateData.description,
-        }),
-        ...(updateData.price !== undefined && { price: updateData.price }),
-        ...(updateData.compareAtPrice !== undefined && {
-          compareAtPrice: updateData.compareAtPrice,
-        }),
-        ...(updateData.sku && { sku: updateData.sku }),
-        ...(updateData.status && {
-          status: (updateData.status as ProductStatus) || "DRAFT",
-        }),
-        ...(updateData.isFeatured !== undefined && {
-          isFeatured: updateData.isFeatured,
-        }),
-      },
       include: {
         category: {
           select: { id: true, name: true, slug: true },
@@ -385,7 +432,7 @@ export class ProductServices {
 
     return {
       message: "Product updated successfully!",
-      data: product,
+      data: updatedProduct,
     };
   }
   static async delete(tenantId: string, productId: string) {
