@@ -43,7 +43,48 @@ export class ProductVariantsServices {
     };
   }
   // get all
+  static async getAllByProductId(tenantId: string, productId: string) {
+    // check if product exists
+    const existingProduct = await prisma.product.findFirst({
+      where: { id: productId, tenantId },
+    });
+    if (!existingProduct) {
+      throw new AppError("Product not found in this store", 404);
+    }
+    const variants = await prisma.productVariant.findMany({
+      where: {
+        productId,
+        tenantId,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+    return {
+      message: "Product variants retrieved successfully!",
+      data: variants,
+    };
+  }
   // getById
+  static async getById(tenantId: string, productId: string, variantId: string) {
+    // check if variant exists
+    const variant = await prisma.productVariant.findFirst({
+      where: {
+        id: variantId,
+        productId,
+        tenantId,
+      },
+    });
+
+    if (!variant) {
+      throw new AppError("Product variant not found in this store", 404);
+    }
+
+    return {
+      message: "Product variant retrieved successfully!",
+      data: variant,
+    };
+  }
   // update
   // delete
 }

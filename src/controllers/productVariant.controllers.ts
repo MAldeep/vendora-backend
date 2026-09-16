@@ -24,4 +24,47 @@ export class ProductVariantsControllers {
       data,
     });
   });
+  static getAllByProductId = catchAsync(async (req: Request, res: Response) => {
+    const tenantId = req.tenantId;
+    if (!tenantId) {
+      throw new AppError("Tenant ID is required", 400);
+    }
+
+    const { id } = req.params;
+    if (!id) {
+      throw new AppError("Product ID is required", 400);
+    }
+    const { data, message } = await ProductVariantsServices.getAllByProductId(
+      tenantId,
+      id as string,
+    );
+    res.status(200).json({
+      status: "success",
+      message,
+      data,
+    });
+  });
+  static getById = catchAsync(async (req: Request, res: Response) => {
+    const tenantId = req.tenantId;
+    if (!tenantId) {
+      throw new AppError("Tenant ID is required", 400);
+    }
+
+    const { id, variantId } = req.params;
+    if (!id || !variantId) {
+      throw new AppError("Product ID and Variant ID are required", 400);
+    }
+
+    const { data, message } = await ProductVariantsServices.getById(
+      tenantId,
+      id as string,
+      variantId as string,
+    );
+
+    res.status(200).json({
+      status: "success",
+      message,
+      data,
+    });
+  });
 }

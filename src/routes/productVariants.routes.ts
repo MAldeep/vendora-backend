@@ -11,10 +11,18 @@ variantRouter.use(protect);
 
 variantRouter
   .route("/")
+  .get(
+    requirePermission("VIEW_PRODUCTS"),
+    ProductVariantsControllers.getAllByProductId,
+  )
   .post(
     requirePermission("CREATE_PRODUCT", "UPDATE_PRODUCT"),
     validate(createVariantSchema),
     ProductVariantsControllers.create,
   );
+
+variantRouter
+  .route("/:variantId")
+  .get(requirePermission("VIEW_PRODUCTS"), ProductVariantsControllers.getById);
 
 export default variantRouter;
