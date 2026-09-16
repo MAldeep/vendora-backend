@@ -35,5 +35,10 @@ router
     uploadProductImages,
     validate(updateProductSchema),
     ProductControllers.update,
+  )
+  .delete(
+    requirePermission("DELETE_PRODUCT"),
+    validate(productIdParamSchema),
+    ProductControllers.delete,
   );
 export default router;

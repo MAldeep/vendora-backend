@@ -6,7 +6,10 @@ import {
   CreateProductInput,
   UpdateProductInput,
 } from "../validation/product.schemas.js";
-import { processAndUploadMultipleImages } from "../config/cloudinary.js";
+import {
+  deleteFromCloudinary,
+  processAndUploadMultipleImages,
+} from "../config/cloudinary.js";
 import { PrismaAPIFeatures } from "../utils/apiFeatures.js";
 
 export class ProductServices {
@@ -327,6 +330,40 @@ export class ProductServices {
     return {
       message: "Product updated successfully!",
       data: product,
+    };
+  }
+  static async delete(tenantId: string, productId: string) {
+    // check if product found
+    const existingProduct = await prisma.product.findFirst({
+      where: { id: productId, tenantId },
+    });
+
+    if (!existingProduct) {
+      throw new AppError("Product not found in this store", 404);
+    }
+
+    // check if product has images
+    const productImages = await prisma.productImage.findMany({
+      where: { productId },
+      select: { publicId: true },
+    });
+
+    // delete images from cloudinary
+    if (productImages.length > 0) {
+      const deletePromises = productImages.map((image) =>
+        deleteFromCloudinary(image.publicId),
+      );
+
+      await Promise.all(deletePromises);
+    }
+
+    // delete product
+    await prisma.product.delete({
+      where: { id: productId },
+    });
+
+    return {
+      message: "Product and associated images deleted successfully!",
     };
   }
 }
