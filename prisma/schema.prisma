@@ -70,6 +70,14 @@ enum Permission {
   DELETE_USER
 }
 
+enum StockMovementReason {
+  PURCHASE_RESTOCK
+  ORDER_RESERVATION
+  ORDER_CANCELLED
+  MANUAL_ADJUSTMENT
+  RETURN_REFUND
+}
+
 model User {
   id                String         @id @default(uuid())
   email             String         @unique
@@ -225,6 +233,7 @@ model ProductVariant {
   updatedAt     DateTime    @updatedAt @map("updated_at")
 
   orderItems    OrderItem[]
+  stockMovements StockMovement[]
 
   @@unique([tenantId, sku])
   @@map("product_variants")
@@ -276,4 +285,20 @@ model OrderItem {
   createdAt     DateTime        @default(now()) @map("created_at")
 
   @@map("order_items")
+}
+
+model StockMovement {
+  id          String               @id @default(uuid())
+  tenantId    String               @map("tenant_id")
+  variantId   String               @map("variant_id")
+  variant     ProductVariant       @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  quantity    Int
+  reason      StockMovementReason
+  referenceId String?              @map("reference_id")
+  note        String?
+  createdById String?              @map("created_by_id")
+  createdAt   DateTime             @default(now()) @map("created_at")
+
+  @@index([tenantId, variantId])
+  @@map("stock_movements")
 }
