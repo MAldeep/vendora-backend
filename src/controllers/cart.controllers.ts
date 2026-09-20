@@ -90,4 +90,63 @@ export class CartControllers {
       });
     },
   );
+  static removeFromCart = catchAsync(async (req: Request, res: Response) => {
+    const tenantId = req.tenantId;
+    if (!tenantId) {
+      throw new AppError("Tenant ID must be provided !", 400);
+    }
+
+    const { itemId } = req.params;
+    const userId = req.user?.id;
+    const guestSessionId =
+      (req.query.sessionId as string) ||
+      (req.headers["x-session-id"] as string);
+
+    if (!userId && !guestSessionId) {
+      throw new AppError(
+        "User authentication or x-session-id is required",
+        400,
+      );
+    }
+
+    const cart = await CartServices.removeFromCart(
+      tenantId,
+      itemId as string,
+      userId,
+      guestSessionId,
+    );
+
+    res.status(200).json({
+      status: "success",
+      message: "Item removed from cart successfully",
+      data: { cart },
+    });
+  });
+
+  static clearCart = catchAsync(async (req: Request, res: Response) => {
+    const tenantId = req.tenantId;
+    if (!tenantId) {
+      throw new AppError("Tenant ID must be provided !", 400);
+    }
+
+    const userId = req.user?.id;
+    const guestSessionId =
+      (req.query.sessionId as string) ||
+      (req.headers["x-session-id"] as string);
+
+    if (!userId && !guestSessionId) {
+      throw new AppError(
+        "User authentication or x-session-id is required",
+        400,
+      );
+    }
+
+    const cart = await CartServices.clearCart(tenantId, userId, guestSessionId);
+
+    res.status(200).json({
+      status: "success",
+      message: "Cart cleared successfully",
+      data: { cart },
+    });
+  });
 }

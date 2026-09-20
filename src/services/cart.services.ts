@@ -241,4 +241,55 @@ export class CartServices {
     // return full cart
     return await this.getCart(tenantId, userId, sessionId);
   }
+  // remove item from cart
+  static async removeFromCart(
+    tenantId: string,
+    cartItemId: string,
+    userId?: string,
+    sessionId?: string,
+  ) {
+    // get cart item
+    const cartItem = await prisma.cartItem.findFirst({
+      where: {
+        id: cartItemId,
+        cart: {
+          tenantId,
+          ...(userId ? { userId } : { sessionId }),
+        },
+      },
+    });
+
+    if (!cartItem) {
+      throw new AppError("Cart item not found", 404);
+    }
+    await prisma.cartItem.delete({
+      where: { id: cartItemId },
+    });
+
+    return await this.getCart(tenantId, userId, sessionId);
+  }
+  // clear cart
+  static async clearCart(
+    tenantId: string,
+    userId?: string,
+    sessionId?: string,
+  ) {
+    const cart = await prisma.cart.findFirst({
+      where: {
+        tenantId,
+        ...(userId ? { userId } : { sessionId }),
+      },
+    });
+    if (cart) {
+      await prisma.cartItem.deleteMany({
+        where: { cartId: cart.id },
+      });
+    }
+    return {
+      id: cart?.id || null,
+      items: [],
+      totalItems: 0,
+      subTotal: 0,
+    };
+  }
 }

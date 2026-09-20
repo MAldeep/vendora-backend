@@ -9,13 +9,19 @@ import { protect } from "../middleware/auth.middleware.js";
 import { requireTenant } from "../middleware/requireTenant.middleware.js";
 import { restrictTo } from "../middleware/restrictTo.js";
 import inventoryRouter from "./inventory.routes.js";
+import cartRouter from "./cart.routes.js";
 
 const router = Router();
 
 /*
   Inventory Routes
 */
-router.use("/:tenantId/inventory/", inventoryRouter);
+router.use("/inventory", inventoryRouter);
+
+/* 
+  Cart Routes 
+*/
+router.use("/cart", cartRouter);
 /* 
   Tenant Main Routes
 */

@@ -28,3 +28,18 @@ export const updateCartItemSchema = z.object({
     sessionId: z.string().optional(),
   }),
 });
+
+export const removeCartItemSchema = z.object({
+  params: z.object({
+    itemId: z.string().uuid("Invalid Cart Item ID format"),
+  }),
+  query: z.object({
+    sessionId: z.string().optional(),
+  }),
+});
+
+export const clearCartSchema = z.object({
+  query: z.object({
+    sessionId: z.string().optional(),
+  }),
+});
