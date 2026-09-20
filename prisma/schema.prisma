@@ -79,41 +79,44 @@ enum StockMovementReason {
 }
 
 model User {
-  id                String         @id @default(uuid())
-  email             String         @unique
-  passwordHash      String         @map("password_hash")
-  fullName          String         @map("full_name")
-  phoneNumber       String?        @map("phone_number")
-  birthDate         DateTime?      @map("birth_date")
+  id                String            @id @default(uuid())
+  email             String            @unique
+  passwordHash      String            @map("password_hash")
+  fullName          String            @map("full_name")
+  phoneNumber       String?           @map("phone_number")
+  birthDate         DateTime?         @map("birth_date")
   gender            Gender?
-  userType          UserType       @default(USER) @map("user_type")
-  isActive          Boolean        @default(true) @map("is_active")
+  userType          UserType          @default(USER) @map("user_type")
+  isActive          Boolean           @default(true) @map("is_active")
   passwordChangedAt DateTime?
-  createdAt         DateTime       @default(now()) @map("created_at")
-  updatedAt         DateTime       @updatedAt @map("updated_at")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
 
   ownedTenants      Tenant[]
   tenantRoles       TenantUserRole[]
   masterOrders      MasterOrder[]
+  carts             Cart[]
 
   @@map("users")
 }
 
 model Tenant {
-  id           String           @id @default(uuid())
-  name         String
-  slug         String           @unique
-  ownerId      String           @map("owner_id")
-  owner        User             @relation(fields: [ownerId], references: [id], onDelete: Restrict)
-  isActive     Boolean          @default(true) @map("is_active")
-  createdAt    DateTime         @default(now()) @map("created_at")
-  updatedAt    DateTime         @updatedAt @map("updated_at")
+  id             String           @id @default(uuid())
+  name           String
+  slug           String           @unique
+  ownerId        String           @map("owner_id")
+  owner          User             @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  isActive       Boolean          @default(true) @map("is_active")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
 
-  products     Product[]
-  categories   Category[]
-  tenantRoles  TenantUserRole[]
-  customRoles  CustomRole[]
-  tenantOrders TenantOrder[]
+  products       Product[]
+  categories     Category[]
+  tenantRoles    TenantUserRole[]
+  customRoles    CustomRole[]
+  tenantOrders   TenantOrder[]
+  stockMovements StockMovement[]
+  carts          Cart[]
 
   @@map("tenants")
 }
@@ -156,23 +159,23 @@ model CustomRole {
 }
 
 model Category {
-  id        String     @id @default(uuid())
-  name      String
-  slug      String     @unique
+  id          String     @id @default(uuid())
+  name        String
+  slug        String     @unique
   description String?
-  isActive    Boolean  @default(true)
+  isActive    Boolean    @default(true)
 
   tenantId    String
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant      Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  createdAt DateTime   @default(now()) @map("created_at")
-  updatedAt DateTime   @updatedAt @map("updated_at")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
   
-  parentId  String?    @map("parent_id")
-  parent    Category?  @relation("CategoryToCategory", fields: [parentId], references: [id], onDelete: SetNull)
+  parentId    String?    @map("parent_id")
+  parent      Category?  @relation("CategoryToCategory", fields: [parentId], references: [id], onDelete: SetNull)
   
-  products  Product[]
-  children  Category[] @relation("CategoryToCategory")
+  products    Product[]
+  children    Category[] @relation("CategoryToCategory")
 
   @@map("categories")
   @@unique([tenantId, slug])
@@ -220,37 +223,74 @@ model ProductImage {
 }
 
 model ProductVariant {
-  id            String      @id @default(uuid())
-  tenantId      String      @map("tenant_id")
-  productId     String      @map("product_id")
-  product       Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
-  title         String
-  sku           String
-  price         Decimal?    @db.Decimal(10, 2)
-  stockQuantity Int         @default(0) @map("stock_quantity")
-  attributes    Json        @db.JsonB
-  createdAt     DateTime    @default(now()) @map("created_at")
-  updatedAt     DateTime    @updatedAt @map("updated_at")
+  id             String          @id @default(uuid())
+  tenantId       String          @map("tenant_id")
+  productId      String          @map("product_id")
+  product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  title          String
+  sku            String
+  price          Decimal?        @db.Decimal(10, 2)
+  stockQuantity  Int             @default(0) @map("stock_quantity")
+  attributes     Json            @db.JsonB
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
 
-  orderItems    OrderItem[]
+  orderItems     OrderItem[]
   stockMovements StockMovement[]
+  cartItems      CartItem[]
 
   @@unique([tenantId, sku])
   @@map("product_variants")
 }
 
+// ==================== CART MODELS ====================
+model Cart {
+  id        String     @id @default(uuid())
+  tenantId  String     @map("tenant_id")
+  tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId    String?    @map("user_id") // Optional: NULL for Guest Users
+  user      User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId String?    @map("session_id") // For guest cart identification (cookie/token)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  items     CartItem[]
+
+  @@index([tenantId, userId])
+  @@index([tenantId, sessionId])
+  @@map("carts")
+}
+
+model CartItem {
+  id        String         @id @default(uuid())
+  cartId    String         @map("cart_id")
+  cart      Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  variantId String         @map("variant_id")
+  variant   ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  quantity  Int            @default(1)
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+
+  @@unique([cartId, variantId])
+  @@map("cart_items")
+}
+
+// ==================== ORDER MODELS ====================
 model MasterOrder {
   id              String        @id @default(uuid())
-  userId          String        @map("user_id")
-  user            User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  userId          String?       @map("user_id") // Optional for Guest Checkout
+  user            User?         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  guestEmail      String?       @map("guest_email")
+  guestName       String?       @map("guest_name")
+  guestPhone      String?       @map("guest_phone")
   totalAmount     Decimal       @db.Decimal(10, 2) @map("total_amount")
   paymentStatus   PaymentStatus @default(PENDING) @map("payment_status")
-  paymentGateway  String?       @map("payment_gateway")
+  paymentGateway  String?       @default("COD") @map("payment_gateway")
   shippingAddress Json          @db.JsonB @map("shipping_address")
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
 
-  tenantOrder     TenantOrder[]
+  tenantOrders    TenantOrder[]
 
   @@map("master_orders")
 }
@@ -272,32 +312,33 @@ model TenantOrder {
 }
 
 model OrderItem {
-  id            String          @id @default(uuid())
-  tenantOrderId String          @map("tenant_order_id")
-  tenantOrder   TenantOrder     @relation(fields: [tenantOrderId], references: [id], onDelete: Cascade)
-  productId     String          @map("product_id")
-  product       Product         @relation(fields: [productId], references: [id], onDelete: Restrict)
-  variantId     String?         @map("variant_id")
-  variant       ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  id            String         @id @default(uuid())
+  tenantOrderId String         @map("tenant_order_id")
+  tenantOrder   TenantOrder    @relation(fields: [tenantOrderId], references: [id], onDelete: Cascade)
+  productId     String         @map("product_id")
+  product       Product        @relation(fields: [productId], references: [id], onDelete: Restrict)
+  variantId     String         @map("variant_id") // Strictly required
+  variant       ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
   quantity      Int
-  unitPrice     Decimal         @db.Decimal(10, 2) @map("unit_price")
-  totalPrice    Decimal         @db.Decimal(10, 2) @map("total_price")
-  createdAt     DateTime        @default(now()) @map("created_at")
+  unitPrice     Decimal        @db.Decimal(10, 2) @map("unit_price")
+  totalPrice    Decimal        @db.Decimal(10, 2) @map("total_price")
+  createdAt     DateTime       @default(now()) @map("created_at")
 
   @@map("order_items")
 }
 
 model StockMovement {
-  id          String               @id @default(uuid())
-  tenantId    String               @map("tenant_id")
-  variantId   String               @map("variant_id")
-  variant     ProductVariant       @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  id          String              @id @default(uuid())
+  tenantId    String              @map("tenant_id")
+  tenant      Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  variantId   String              @map("variant_id")
+  variant     ProductVariant      @relation(fields: [variantId], references: [id], onDelete: Cascade)
   quantity    Int
   reason      StockMovementReason
-  referenceId String?              @map("reference_id")
+  referenceId String?             @map("reference_id")
   note        String?
-  createdById String?              @map("created_by_id")
-  createdAt   DateTime             @default(now()) @map("created_at")
+  createdById String?             @map("created_by_id")
+  createdAt   DateTime            @default(now()) @map("created_at")
 
   @@index([tenantId, variantId])
   @@map("stock_movements")
