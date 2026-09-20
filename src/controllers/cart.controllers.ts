@@ -33,4 +33,29 @@ export class CartControllers {
       },
     });
   });
+  static getCart = catchAsync(async (req: Request, res: Response) => {
+    const tenantId = req.tenantId;
+    if (!tenantId) {
+      throw new AppError("Tenant ID must be provided !", 400);
+    }
+
+    const userId = req.user?.id;
+    const sessionId =
+      (req.query.sessionId as string) ||
+      (req.headers["x-session-id"] as string);
+    if (!userId && !sessionId) {
+      throw new AppError(
+        "User authentication or x-session-id is required",
+        400,
+      );
+    }
+    const cart = await CartServices.getCart(tenantId, userId, sessionId);
+
+    res.status(200).json({
+      status: "success",
+      data: {
+        cart,
+      },
+    });
+  });
 }

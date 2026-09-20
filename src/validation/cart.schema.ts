@@ -10,3 +10,9 @@ export const addToCartSchema = z.object({
     sessionId: z.string().optional(),
   }),
 });
+
+export const getCartSchema = z.object({
+  query: z.object({
+    sessionId: z.string().optional(),
+  }),
+});

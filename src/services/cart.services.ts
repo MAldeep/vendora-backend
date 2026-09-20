@@ -121,4 +121,81 @@ export class CartServices {
       },
     });
   }
+  static async getCart(tenantId: string, userId?: string, sessionId?: string) {
+    // 1- check if user or session
+    if (!userId && !sessionId) {
+      throw new AppError("Either userId or sessionId must be provided", 400);
+    }
+    // 2- get cart
+    const cart = await prisma.cart.findFirst({
+      where: {
+        tenantId,
+        ...(userId ? { userId } : { sessionId }),
+      },
+      include: {
+        items: {
+          include: {
+            variant: {
+              include: {
+                product: {
+                  select: {
+                    id: true,
+                    title: true,
+                    slug: true,
+                    status: true,
+                    images: {
+                      take: 1,
+                      orderBy: { position: "asc" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        },
+      },
+    });
+    // 3- check if no cart
+    if (!cart) {
+      return {
+        id: null,
+        items: [],
+        totalItems: 0,
+        subTotal: 0,
+      };
+    }
+    let subTotal = 0;
+    let totalItems = 0;
+    // format cart items
+    const formattedItems = cart.items.map((item) => {
+      const unitPrice = Number(item.variant.price ?? item.variant.product);
+      const itemTotalPrice = unitPrice * item.quantity;
+
+      subTotal += itemTotalPrice;
+      totalItems += item.quantity;
+
+      return {
+        id: item.id,
+        variantId: item.variantId,
+        productTitle: item.variant.product.title,
+        variantTitle: item.variant.title,
+        sku: item.variant.sku,
+        image: item.variant.product.images[0]?.url || null,
+        unitPrice,
+        quantity: item.quantity,
+        totalPrice: itemTotalPrice,
+        stockAvailable: item.variant.stockQuantity,
+        isAvailable:
+          item.variant.stockQuantity >= item.quantity &&
+          item.variant.product.status === "PUBLISHED",
+      };
+    });
+    return {
+      id: cart.id,
+      items: formattedItems,
+      totalItems,
+      subTotal: Number(subTotal.toFixed(2)),
+    };
+  }
 }
