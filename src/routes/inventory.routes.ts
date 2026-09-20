@@ -6,6 +6,7 @@ import { validate } from "../middleware/validate.middleware.js";
 import {
   adjustStockSchema,
   getLowStockSchema,
+  getMovementsSchema,
 } from "../validation/inventory.schema.js";
 import { InventoryControllers } from "../controllers/inventory.controllers.js";
 
@@ -29,4 +30,11 @@ router.get(
   InventoryControllers.getLowStock,
 );
 
+router.get(
+  "/movements",
+  requireTenant,
+  requirePermission("VIEW_PRODUCTS"),
+  validate(getMovementsSchema),
+  InventoryControllers.getMovementsHistory,
+);
 export default router;

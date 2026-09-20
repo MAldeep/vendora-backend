@@ -2,6 +2,7 @@ import { StockMovementReason } from "@prisma/client";
 import { AppError } from "../utils/appError.js";
 import prisma from "../config/prisma.js";
 import { AdjustStockInput } from "../validation/inventory.schema.js";
+import { PrismaAPIFeatures } from "../utils/apiFeatures.js";
 
 export class InventoryServices {
   // manual stock adjustment
@@ -87,6 +88,57 @@ export class InventoryServices {
     return {
       message: "This is low stock variants",
       variants: lowStockVariants,
+    };
+  }
+  // get stock movements history using PrismaAPIFeatures
+  static async getMovementsHistory(
+    tenantId: string,
+    queryString: Record<string, any>,
+  ) {
+    const features = new PrismaAPIFeatures(queryString, {
+      searchFields: ["note", "referenceId"],
+    })
+      .filter()
+      .sort()
+      .paginate();
+
+    const builtQuery = features.build();
+
+    const where = {
+      ...builtQuery.where,
+      tenantId,
+    };
+    const [movements, total] = await Promise.all([
+      prisma.stockMovement.findMany({
+        ...builtQuery,
+        where,
+        include: {
+          variant: {
+            select: {
+              id: true,
+              sku: true,
+              title: true,
+              product: {
+                select: {
+                  title: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+      prisma.stockMovement.count({ where }),
+    ]);
+
+    return {
+      message: "Movment history is retrieved !",
+      movements,
+      pagination: {
+        total,
+        page: features.page,
+        limit: features.take,
+        totalPages: Math.ceil(total / features.take),
+      },
     };
   }
 }

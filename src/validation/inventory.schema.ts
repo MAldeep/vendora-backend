@@ -30,4 +30,17 @@ export const getLowStockSchema = z.object({
   }),
 });
 
+export const getMovementsSchema = z.object({
+  query: z
+    .object({
+      variantId: z.string().optional(),
+      reason: z.nativeEnum(StockMovementReason).optional(),
+      search: z.string().optional(),
+      sort: z.string().optional(),
+      page: z.string().optional(),
+      limit: z.string().optional(),
+      fields: z.string().optional(),
+    })
+    .passthrough(), // للسماح بأي فلاتر إضافية تتعامل معاها الـ Utility
+});
 export type AdjustStockInput = z.infer<typeof adjustStockSchema>["body"];

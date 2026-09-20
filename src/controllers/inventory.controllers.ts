@@ -45,4 +45,24 @@ export class InventoryControllers {
       },
     });
   });
+  static getMovementsHistory = catchAsync(
+    async (req: Request, res: Response) => {
+      const tenantId = req.tenantId;
+      if (!tenantId) {
+        throw new AppError("Tenant ID must be provided !", 400);
+      }
+      const { movements, pagination, message } =
+        await InventoryServices.getMovementsHistory(tenantId, req.query);
+
+      res.status(200).json({
+        status: "success",
+        results: movements.length,
+        message,
+        pagination,
+        data: {
+          movements,
+        },
+      });
+    },
+  );
 }
