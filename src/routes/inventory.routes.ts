@@ -10,11 +10,11 @@ import {
 } from "../validation/inventory.schema.js";
 import { InventoryControllers } from "../controllers/inventory.controllers.js";
 
-const router = Router({ mergeParams: true });
+const inventoryRouter = Router({ mergeParams: true });
 
-router.use(protect);
+inventoryRouter.use(protect);
 
-router.patch(
+inventoryRouter.patch(
   "/:variantId/adjust",
   requireTenant,
   requirePermission("UPDATE_PRODUCT"),
@@ -22,7 +22,7 @@ router.patch(
   InventoryControllers.adjustStock,
 );
 
-router.get(
+inventoryRouter.get(
   "/low-stock",
   requireTenant,
   requirePermission("VIEW_PRODUCTS"),
@@ -30,11 +30,11 @@ router.get(
   InventoryControllers.getLowStock,
 );
 
-router.get(
+inventoryRouter.get(
   "/movements",
   requireTenant,
   requirePermission("VIEW_PRODUCTS"),
   validate(getMovementsSchema),
   InventoryControllers.getMovementsHistory,
 );
-export default router;
+export default inventoryRouter;

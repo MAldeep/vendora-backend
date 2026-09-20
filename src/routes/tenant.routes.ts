@@ -8,9 +8,17 @@ import { TenantControllers } from "../controllers/tenant.controllers.js";
 import { protect } from "../middleware/auth.middleware.js";
 import { requireTenant } from "../middleware/requireTenant.middleware.js";
 import { restrictTo } from "../middleware/restrictTo.js";
+import inventoryRouter from "./inventory.routes.js";
 
 const router = Router();
 
+/*
+  Inventory Routes
+*/
+router.use("/:tenantId/inventory/", inventoryRouter);
+/* 
+  Tenant Main Routes
+*/
 // Create new Tenant
 router
   .route("/")
@@ -38,3 +46,5 @@ router.patch(
   restrictTo("OWNER"),
   TenantControllers.toggleStatus,
 );
+
+export default router;
