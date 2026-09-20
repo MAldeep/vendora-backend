@@ -110,4 +110,27 @@ export class OrderControllers {
       data: { order },
     });
   });
+
+  static cancelOrder = catchAsync(async (req: Request, res: Response) => {
+    const orderId = req.params.orderId;
+    const userId = req.user?.id;
+    const { email: guestEmail, reason } = req.body || {};
+
+    if (!userId && !guestEmail) {
+      throw new AppError("User authentication or guest email is required", 400);
+    }
+
+    const updatedOrder = await OrderServices.cancelCustomerOrder({
+      orderId: orderId as string,
+      userId,
+      guestEmail,
+      cancelReason: reason,
+    });
+
+    res.status(200).json({
+      status: "success",
+      message: "Order cancelled successfully and stock restored",
+      data: { order: updatedOrder },
+    });
+  });
 }

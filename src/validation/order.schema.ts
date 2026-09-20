@@ -60,3 +60,15 @@ export const trackOrderSchema = z.object({
     email: z.string().email("Invalid email format"),
   }),
 });
+
+export const cancelOrderSchema = z.object({
+  params: z.object({
+    orderId: z.string().uuid("Invalid Master Order ID format"),
+  }),
+  body: z
+    .object({
+      email: z.string().email("Invalid email format").optional(),
+      reason: z.string().optional(),
+    })
+    .optional(),
+});

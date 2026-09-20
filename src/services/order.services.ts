@@ -407,4 +407,103 @@ export class OrderServices {
 
     return masterOrder;
   }
+
+  /*
+    Cancel order if still pending (customer perspective)
+  */
+  static async cancelCustomerOrder(params: {
+    orderId: string;
+    userId?: string;
+    guestEmail?: string;
+    cancelReason?: string;
+  }) {
+    const { orderId, userId, guestEmail, cancelReason } = params;
+
+    return await prisma.$transaction(async (tx) => {
+      // get master order and check for it
+      const masterOrder = await tx.masterOrder.findFirst({
+        where: {
+          id: orderId,
+          OR: [
+            ...(userId ? [{ userId }] : []),
+            ...(guestEmail ? [{ guestEmail }] : []),
+          ],
+        },
+        include: {
+          tenantOrders: {
+            include: {
+              orderItems: true,
+            },
+          },
+        },
+      });
+
+      if (!masterOrder) {
+        throw new AppError(
+          "Order not found or you do not have permission to cancel it",
+          404,
+        );
+      }
+
+      // get tenants orders and check for status
+      const isEligibleForCancellation = masterOrder.tenantOrders.every(
+        (tenantOrder) => tenantOrder.orderStatus === OrderStatus.PENDING,
+      );
+
+      if (!isEligibleForCancellation) {
+        throw new AppError(
+          "Cannot cancel order as one or more items are already being processed, shipped, or delivered",
+          400,
+        );
+      }
+
+      // cancel and restock
+      for (const tenantOrder of masterOrder.tenantOrders) {
+        if (tenantOrder.orderStatus === OrderStatus.CANCELLED) continue;
+
+        await tx.tenantOrder.update({
+          where: { id: tenantOrder.id },
+          data: { orderStatus: OrderStatus.CANCELLED },
+        });
+
+        for (const item of tenantOrder.orderItems) {
+          await tx.productVariant.update({
+            where: { id: item.variantId },
+            data: {
+              stockQuantity: {
+                increment: item.quantity,
+              },
+            },
+          });
+
+          // log stock movement
+          await tx.stockMovement.create({
+            data: {
+              tenantId: tenantOrder.tenantId,
+              variantId: item.variantId,
+              quantity: item.quantity, // بالموجب
+              reason: StockMovementReason.ORDER_CANCELLED,
+              referenceId: tenantOrder.id,
+              note: `Order cancelled by customer. ${
+                cancelReason ? `Reason: ${cancelReason}` : ""
+              }`.trim(),
+              createdById: userId || null,
+            },
+          });
+        }
+      }
+
+      // updated master order
+      return await tx.masterOrder.findUnique({
+        where: { id: orderId },
+        include: {
+          tenantOrders: {
+            include: {
+              orderItems: true,
+            },
+          },
+        },
+      });
+    });
+  }
 }
