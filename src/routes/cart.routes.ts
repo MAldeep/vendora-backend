@@ -9,9 +9,10 @@ import {
   updateCartItemSchema,
 } from "../validation/cart.schema.js";
 import { CartControllers } from "../controllers/cart.controllers.js";
+import { optionalAuth } from "../middleware/optionalAuth.js";
 
 const cartRouter = Router({ mergeParams: true });
-
+cartRouter.use(optionalAuth);
 cartRouter.post(
   "/items",
   requireTenant,
