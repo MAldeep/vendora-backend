@@ -199,7 +199,7 @@ export class OrderServices {
   }
 
   /* 
-    Get All Tenants Orders
+    Get All Tenants Orders (Tenant perspective)
   */
   static async getTenantOrders(
     tenantId: string,
@@ -264,7 +264,7 @@ export class OrderServices {
   }
 
   /*
-    Update order status or restock if cancelled order
+    Update order status or restock if cancelled order (Tenant perspective)
   */
   static async updateOrderStatus(
     tenantId: string,
@@ -328,5 +328,83 @@ export class OrderServices {
       });
       return updatedOrder;
     });
+  }
+
+  /*
+    get all orders (customer perspective)
+  */
+  static async getMyOrders(userId: string, queryString: Record<string, any>) {
+    const features = new PrismaAPIFeatures(queryString, {
+      searchFields: ["id"],
+    })
+      .filter()
+      .sort()
+      .paginate();
+
+    const builtQuery = features.build();
+
+    const where = {
+      ...builtQuery.where,
+      userId,
+    };
+
+    const [orders, total] = await Promise.all([
+      prisma.masterOrder.findMany({
+        ...builtQuery,
+        where,
+        include: {
+          tenantOrders: {
+            include: {
+              orderItems: {
+                include: {
+                  product: { select: { title: true } },
+                  variant: { select: { title: true, sku: true } },
+                },
+              },
+            },
+          },
+        },
+      }),
+      prisma.masterOrder.count({ where }),
+    ]);
+    return {
+      orders,
+      pagination: {
+        total,
+        page: features.page,
+        limit: features.take,
+        totalPages: Math.ceil(total / features.take),
+      },
+    };
+  }
+
+  /* 
+    Track Order (customer perspective)
+  */
+  static async trackOrder(orderId: string, email: string) {
+    const masterOrder = await prisma.masterOrder.findFirst({
+      where: {
+        id: orderId,
+        OR: [{ guestEmail: email }, { user: { email: email } }],
+      },
+      include: {
+        tenantOrders: {
+          include: {
+            orderItems: {
+              include: {
+                product: { select: { title: true } },
+                variant: { select: { title: true, attributes: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!masterOrder) {
+      throw new AppError("Order not found or email does not match", 404);
+    }
+
+    return masterOrder;
   }
 }

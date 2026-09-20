@@ -53,3 +53,10 @@ export const updateOrderStatusSchema = z.object({
     }),
   }),
 });
+
+export const trackOrderSchema = z.object({
+  query: z.object({
+    orderId: z.string().uuid("Invalid Master Order ID format"),
+    email: z.string().email("Invalid email format"),
+  }),
+});

@@ -80,4 +80,34 @@ export class OrderControllers {
       data: { order },
     });
   });
+
+  static getMyOrders = catchAsync(async (req: Request, res: Response) => {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new AppError("User authentication required", 401);
+    }
+
+    const { orders, pagination } = await OrderServices.getMyOrders(
+      userId,
+      req.query,
+    );
+
+    res.status(200).json({
+      status: "success",
+      results: orders.length,
+      pagination,
+      data: { orders },
+    });
+  });
+
+  static trackOrder = catchAsync(async (req: Request, res: Response) => {
+    const { orderId, email } = req.query as { orderId: string; email: string };
+
+    const order = await OrderServices.trackOrder(orderId, email);
+
+    res.status(200).json({
+      status: "success",
+      data: { order },
+    });
+  });
 }
