@@ -20,4 +20,14 @@ export const adjustStockSchema = z.object({
   }),
 });
 
+export const getLowStockSchema = z.object({
+  query: z.object({
+    threshold: z
+      .string()
+      .optional()
+      .transform((val) => (val ? parseInt(val, 10) : 5))
+      .pipe(z.number().positive("Threshold must be a positive number")),
+  }),
+});
+
 export type AdjustStockInput = z.infer<typeof adjustStockSchema>["body"];

@@ -25,4 +25,24 @@ export class InventoryControllers {
       movement,
     });
   });
+  static getLowStock = catchAsync(async (req: Request, res: Response) => {
+    const tenantId = req.tenantId;
+    if (!tenantId) {
+      throw new AppError("Tenant ID must be provided !", 400);
+    }
+    const threshold = req.query.threshold ? Number(req.query.threshold) : 5;
+    const { message, variants } = await InventoryServices.getLowStock(
+      tenantId,
+      threshold,
+    );
+
+    res.status(200).json({
+      status: "success",
+      results: variants.length,
+      message,
+      data: {
+        variants,
+      },
+    });
+  });
 }

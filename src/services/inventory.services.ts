@@ -62,4 +62,31 @@ export class InventoryServices {
       };
     });
   }
+  // get low stock
+  static async getLowStock(tenantId: string, threshold: number = 5) {
+    const lowStockVariants = await prisma.productVariant.findMany({
+      where: {
+        tenantId,
+        stockQuantity: {
+          lte: threshold,
+        },
+      },
+      include: {
+        product: {
+          select: {
+            id: true,
+            slug: true,
+            title: true,
+          },
+        },
+      },
+      orderBy: {
+        stockQuantity: "asc",
+      },
+    });
+    return {
+      message: "This is low stock variants",
+      variants: lowStockVariants,
+    };
+  }
 }
