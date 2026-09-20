@@ -1,3 +1,4 @@
+import { OrderStatus } from "@prisma/client";
 import { z } from "zod";
 
 export const checkoutSchema = z.object({
@@ -28,4 +29,27 @@ export const checkoutSchema = z.object({
         message: "Guest information is required for guest checkout",
       },
     ),
+});
+
+export const getTenantOrdersSchema = z.object({
+  query: z
+    .object({
+      orderStatus: z.nativeEnum(OrderStatus).optional(),
+      search: z.string().optional(),
+      sort: z.string().optional(),
+      page: z.string().optional(),
+      limit: z.string().optional(),
+    })
+    .passthrough(),
+});
+
+export const updateOrderStatusSchema = z.object({
+  params: z.object({
+    orderId: z.string().uuid("Invalid Tenant Order ID format"),
+  }),
+  body: z.object({
+    status: z.nativeEnum(OrderStatus, {
+      error: "Order status is required",
+    }),
+  }),
 });

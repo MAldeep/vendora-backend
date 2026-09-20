@@ -39,4 +39,45 @@ export class OrderControllers {
       },
     });
   });
+  static getTenantOrders = catchAsync(async (req: Request, res: Response) => {
+    const tenantId = req.tenantId;
+    if (!tenantId) {
+      throw new AppError("Tenant ID must be provided !", 400);
+    }
+
+    const { orders, pagination } = await OrderServices.getTenantOrders(
+      tenantId,
+      req.query,
+    );
+
+    res.status(200).json({
+      status: "success",
+      results: orders.length,
+      pagination,
+      data: { orders },
+    });
+  });
+  static updateOrderStatus = catchAsync(async (req: Request, res: Response) => {
+    const tenantId = req.tenantId;
+    if (!tenantId) {
+      throw new AppError("Tenant ID must be provided !", 400);
+    }
+
+    const { orderId } = req.params;
+    const { status } = req.body;
+    const userId = req.user?.id;
+
+    const order = await OrderServices.updateOrderStatus(
+      tenantId,
+      orderId as string,
+      status,
+      userId,
+    );
+
+    res.status(200).json({
+      status: "success",
+      message: `Order status updated to ${status} successfully`,
+      data: { order },
+    });
+  });
 }

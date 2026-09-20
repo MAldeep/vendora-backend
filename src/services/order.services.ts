@@ -1,6 +1,7 @@
-import { StockMovementReason } from "@prisma/client";
+import { OrderStatus, StockMovementReason } from "@prisma/client";
 import prisma from "../config/prisma.js";
 import { AppError } from "../utils/appError.js";
+import { PrismaAPIFeatures } from "../utils/apiFeatures.js";
 
 interface CheckoutDTO {
   userId?: string;
@@ -12,6 +13,9 @@ interface CheckoutDTO {
   paymentGateway?: string;
 }
 export class OrderServices {
+  /*
+    Checkout
+  */
   static async checkoutOrder(dto: CheckoutDTO) {
     const {
       userId,
@@ -191,6 +195,138 @@ export class OrderServices {
         where: { id: { in: cartIds } },
       });
       return updatedMasterOrder;
+    });
+  }
+
+  /* 
+    Get All Tenants Orders
+  */
+  static async getTenantOrders(
+    tenantId: string,
+    queryString: Record<string, any>,
+  ) {
+    const features = new PrismaAPIFeatures(queryString, {
+      searchFields: ["id", "masterOrderId"],
+    })
+      .filter()
+      .sort()
+      .paginate();
+
+    const builtQuery = features.build();
+
+    const where = {
+      ...builtQuery.where,
+      tenantId,
+    };
+
+    const [orders, total] = await Promise.all([
+      prisma.tenantOrder.findMany({
+        ...builtQuery,
+        where,
+        include: {
+          masterOrder: {
+            select: {
+              id: true,
+              userId: true,
+              guestName: true,
+              guestEmail: true,
+              guestPhone: true,
+              shippingAddress: true,
+              paymentStatus: true,
+              paymentGateway: true,
+              createdAt: true,
+            },
+          },
+          orderItems: {
+            include: {
+              product: {
+                select: { title: true },
+              },
+              variant: {
+                select: { sku: true, title: true, attributes: true },
+              },
+            },
+          },
+        },
+      }),
+      prisma.tenantOrder.count({ where }),
+    ]);
+
+    return {
+      orders,
+      pagination: {
+        total,
+        page: features.page,
+        limit: features.take,
+        totalPages: Math.ceil(total / features.take),
+      },
+    };
+  }
+
+  /*
+    Update order status or restock if cancelled order
+  */
+  static async updateOrderStatus(
+    tenantId: string,
+    tenantOrderId: string,
+    status: OrderStatus,
+    userId?: string,
+  ) {
+    return await prisma.$transaction(async (tx) => {
+      // get order and check it
+      const existingOrder = await tx.tenantOrder.findFirst({
+        where: {
+          id: tenantOrderId,
+          tenantId,
+        },
+        include: {
+          orderItems: true,
+        },
+      });
+
+      if (!existingOrder) {
+        throw new AppError("Tenant order not found", 404);
+      }
+
+      // CASE : order cancelled (and was not) , restock
+      if (
+        status === OrderStatus.CANCELLED &&
+        existingOrder.orderStatus !== OrderStatus.CANCELLED
+      ) {
+        for (const item of existingOrder.orderItems) {
+          // increment stock
+          await tx.productVariant.update({
+            where: { id: item.variantId },
+            data: {
+              stockQuantity: {
+                increment: item.quantity,
+              },
+            },
+          });
+
+          // log stock movement
+          await tx.stockMovement.create({
+            data: {
+              tenantId,
+              variantId: item.variantId,
+              quantity: item.quantity,
+              reason: StockMovementReason.ORDER_CANCELLED,
+              referenceId: existingOrder.id,
+              note: `Order #${existingOrder.id} cancelled. Stock restored.`,
+              createdById: userId || null,
+            },
+          });
+        }
+      }
+
+      const updatedOrder = await tx.tenantOrder.update({
+        where: { id: tenantOrderId },
+        data: { orderStatus: status },
+        include: {
+          orderItems: true,
+        },
+      });
+      return updatedOrder;
     });
   }
 }
