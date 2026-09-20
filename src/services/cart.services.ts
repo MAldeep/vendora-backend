@@ -121,6 +121,7 @@ export class CartServices {
       },
     });
   }
+  // get cart
   static async getCart(tenantId: string, userId?: string, sessionId?: string) {
     // 1- check if user or session
     if (!userId && !sessionId) {
@@ -197,5 +198,47 @@ export class CartServices {
       totalItems,
       subTotal: Number(subTotal.toFixed(2)),
     };
+  }
+  // update cart item qty
+  static async updateCartItemQuantity(
+    tenantId: string,
+    cartItemId: string,
+    quantity: number,
+    userId?: string,
+    sessionId?: string,
+  ) {
+    // check if qty is zero
+    if (quantity <= 0) {
+      throw new AppError("Quantity must be at least 1", 400);
+    }
+    // get cart item
+    const cartItem = await prisma.cartItem.findFirst({
+      where: {
+        id: cartItemId,
+        cart: {
+          tenantId,
+          ...(userId ? { userId } : { sessionId }),
+        },
+      },
+      include: { variant: true },
+    });
+    // check if no cart item
+    if (!cartItem) {
+      throw new AppError("Cart item not found", 404);
+    }
+    // check if stock is < qty
+    if (cartItem.variant.stockQuantity < quantity) {
+      throw new AppError(
+        `Requested quantity (${quantity}) exceeds available stock (${cartItem.variant.stockQuantity})`,
+        400,
+      );
+    }
+    // update cart item
+    await prisma.cartItem.update({
+      where: { id: cartItemId },
+      data: { quantity },
+    });
+    // return full cart
+    return await this.getCart(tenantId, userId, sessionId);
   }
 }
