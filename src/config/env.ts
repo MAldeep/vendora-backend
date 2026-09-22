@@ -19,6 +19,9 @@ const envSchema = z.object({
   CLOUDINARY_API_SECRET: z.string(),
   STRIPE_SECRET_KEY: z.string(),
   STRIPE_WEBHOOK_SECRET: z.string(),
+  PAYMOB_API_KEY: z.string(),
+  PAYMOB_INTEGRATION_ID: z.string(),
+  PAYMOB_IFRAME_ID: z.string(),
 });
 
 const parseResult = envSchema.safeParse(process.env);
