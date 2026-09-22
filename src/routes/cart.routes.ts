@@ -11,7 +11,7 @@ import {
 import { CartControllers } from "../controllers/cart.controllers.js";
 import { optionalAuth } from "../middleware/optionalAuth.js";
 
-const cartRouter = Router({ mergeParams: true });
+const cartRouter = Router();
 cartRouter.use(optionalAuth);
 cartRouter.post(
   "/items",

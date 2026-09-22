@@ -10,6 +10,12 @@ import { AppError } from "./utils/appError.js";
 import globalErrorHandler from "./middleware/errorHandler.middleware.js";
 import customRoleRoutes from "./routes/customRole.routes.js";
 import webhookRoutes from "./routes/webhook.routes.js";
+import cartRouter from "./routes/cart.routes.js";
+import tenantRouter from "./routes/tenant.routes.js";
+import customRolesRouter from "./routes/customRole.routes.js";
+import ordersRouter from "./routes/order.routes.js";
+import productsRouter from "./routes/product.routes.js";
+import tenantOrdersRouter from "./routes/tenantOrders.routes.js";
 // 1- App
 const app = express();
 
@@ -67,6 +73,13 @@ app.use(cookieParser());
 // 7- Routes
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/roles", customRoleRoutes);
+app.use("/api/v1/cart", cartRouter);
+app.use("/api/v1/tenants", tenantRouter);
+app.use("/api/v1/customRoles", customRolesRouter);
+app.use("/api/v1/orders", ordersRouter);
+app.use("api/v1/products", productsRouter);
+app.use("/api/v1/tenantsOrders", tenantOrdersRouter);
+
 // 8. 404 Route Handler
 app.use((req: Request, _res: Response, next: NextFunction) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));

@@ -10,11 +10,12 @@ import {
 import { ProductControllers } from "../controllers/product.controllers.js";
 import { uploadProductImages } from "../middleware/upload.middleware.js";
 import variantRouter from "./productVariants.routes.js";
+import { requireTenant } from "../middleware/requireTenant.middleware.js";
 
 const router = Router();
 
 router.use(protect);
-
+router.use(requireTenant);
 /*
   Variants Routes
 */

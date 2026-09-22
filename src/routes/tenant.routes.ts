@@ -9,7 +9,6 @@ import { protect } from "../middleware/auth.middleware.js";
 import { requireTenant } from "../middleware/requireTenant.middleware.js";
 import { restrictTo } from "../middleware/restrictTo.js";
 import inventoryRouter from "./inventory.routes.js";
-import cartRouter from "./cart.routes.js";
 
 const router = Router();
 
@@ -19,13 +18,8 @@ const router = Router();
 router.use("/inventory", inventoryRouter);
 
 /* 
-  Cart Routes 
-*/
-router.use("/cart", cartRouter);
-/* 
   Tenant Main Routes
 */
-// Create new Tenant
 router
   .route("/")
   .post(protect, validate(createTenantSchema), TenantControllers.create)
