@@ -21,7 +21,7 @@ export class OrderControllers {
       throw new AppError("Guest email is required for guest checkout", 400);
     }
 
-    const { masterOrder, clientSecret } = await OrderServices.checkoutOrder({
+    const { masterOrder, paymentResult } = await OrderServices.checkoutOrder({
       userId,
       sessionId: guestSessionId,
       guestName,
@@ -36,7 +36,7 @@ export class OrderControllers {
       message: "Order placed successfully",
       data: {
         masterOrder,
-        clientSecret,
+        paymentResult,
       },
     });
   });

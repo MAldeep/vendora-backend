@@ -2,7 +2,7 @@ import { OrderStatus, StockMovementReason } from "@prisma/client";
 import prisma from "../config/prisma.js";
 import { AppError } from "../utils/appError.js";
 import { PrismaAPIFeatures } from "../utils/apiFeatures.js";
-import { PaymentService } from "./payment.service.js";
+import { PaymentService } from "./payment/payment.service.js";
 
 interface CheckoutDTO {
   userId?: string;
@@ -11,7 +11,7 @@ interface CheckoutDTO {
   guestEmail?: string;
   guestPhone?: string;
   shippingAddress: Record<string, any>;
-  paymentGateway?: string;
+  paymentGateway: string;
 }
 export class OrderServices {
   /*
@@ -25,7 +25,7 @@ export class OrderServices {
       guestEmail,
       guestPhone,
       shippingAddress,
-      paymentGateway = "COD",
+      paymentGateway,
     } = dto;
 
     // 1- check for identity
@@ -199,26 +199,20 @@ export class OrderServices {
       return updatedMasterOrder;
     });
 
-    let clientSecret: string | null = null;
-
-    if (paymentGateway === "CARD" || paymentGateway === "STRIPE") {
-      try {
-        const paymentData = await PaymentService.createStripePaymentIntent(
-          masterOrder.id,
-          Number(masterOrder.totalAmount),
-        );
-        clientSecret = paymentData.clientSecret;
-      } catch (error) {
-        throw new AppError(
-          "Order created, but payment initialization failed. Please retry payment from your orders list.",
-          500,
-        );
-      }
-    }
+    const paymentResult = await PaymentService.processPayment(paymentGateway, {
+      orderId: masterOrder.id,
+      amount: Number(masterOrder.totalAmount),
+      currency: "EGP",
+      customer: {
+        name: masterOrder.guestName,
+        email: masterOrder.guestEmail,
+        phone: masterOrder.guestPhone,
+      },
+    });
 
     return {
       masterOrder,
-      clientSecret,
+      paymentResult,
     };
   }
   /* 
