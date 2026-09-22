@@ -2,6 +2,7 @@ import { OrderStatus, StockMovementReason } from "@prisma/client";
 import prisma from "../config/prisma.js";
 import { AppError } from "../utils/appError.js";
 import { PrismaAPIFeatures } from "../utils/apiFeatures.js";
+import { PaymentService } from "./payment.service.js";
 
 interface CheckoutDTO {
   userId?: string;
@@ -36,7 +37,7 @@ export class OrderServices {
     }
 
     // 2- transaction
-    return await prisma.$transaction(async (tx) => {
+    const masterOrder = await prisma.$transaction(async (tx) => {
       // a. get all carts
       const carts = await tx.cart.findMany({
         where: {
@@ -194,10 +195,32 @@ export class OrderServices {
       await tx.cart.deleteMany({
         where: { id: { in: cartIds } },
       });
+
       return updatedMasterOrder;
     });
-  }
 
+    let clientSecret: string | null = null;
+
+    if (paymentGateway === "CARD" || paymentGateway === "STRIPE") {
+      try {
+        const paymentData = await PaymentService.createStripePaymentIntent(
+          masterOrder.id,
+          Number(masterOrder.totalAmount),
+        );
+        clientSecret = paymentData.clientSecret;
+      } catch (error) {
+        throw new AppError(
+          "Order created, but payment initialization failed. Please retry payment from your orders list.",
+          500,
+        );
+      }
+    }
+
+    return {
+      masterOrder,
+      clientSecret,
+    };
+  }
   /* 
     Get All Tenants Orders (Tenant perspective)
   */

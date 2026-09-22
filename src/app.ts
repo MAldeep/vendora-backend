@@ -9,6 +9,7 @@ import authRoutes from "./routes/auth.routes.js";
 import { AppError } from "./utils/appError.js";
 import globalErrorHandler from "./middleware/errorHandler.middleware.js";
 import customRoleRoutes from "./routes/customRole.routes.js";
+import webhookRoutes from "./routes/webhook.routes.js";
 // 1- App
 const app = express();
 
@@ -57,7 +58,8 @@ app.use("/api", limiter);
 if (env.NODE_ENV === "development") {
   app.use(morgan("dev"));
 }
-
+// 6- webhooks
+app.use("/api/v1/webhooks", webhookRoutes);
 // 6. Body Parsers & Cookies
 app.use(express.json({ limit: "10kb" }));
 app.use(cookieParser());
