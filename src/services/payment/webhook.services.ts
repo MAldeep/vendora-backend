@@ -1,5 +1,5 @@
 import { OrderStatus, PaymentStatus } from "@prisma/client";
-import prisma from "../config/prisma.js";
+import prisma from "../../config/prisma.js";
 
 export class WebhookServices {
   static async handlePaymentSuccess(

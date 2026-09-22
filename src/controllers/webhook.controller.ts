@@ -2,7 +2,7 @@ import Stripe from "stripe";
 import { env } from "../config/env.js";
 import { catchAsync } from "../utils/catchAsync.js";
 import { Request, Response } from "express";
-import { WebhookServices } from "../services/webhook.services.js";
+import { WebhookServices } from "../services/payment/webhook.services.js";
 
 const stripe = new Stripe(env.STRIPE_SECRET_KEY!, {
   apiVersion: "2025-01-27.acacia" as any,
