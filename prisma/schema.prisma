@@ -78,6 +78,12 @@ enum StockMovementReason {
   RETURN_REFUND
 }
 
+enum PaymentGateway {
+  STRIPE
+  PAYMOB
+  COD
+}
+
 model User {
   id                String            @id @default(uuid())
   email             String            @unique
@@ -107,11 +113,16 @@ model Tenant {
   ownerId   String   @map("owner_id")
   owner     User     @relation(fields: [ownerId], references: [id], onDelete: Restrict)
   isActive  Boolean  @default(true) @map("is_active")
+  //Gateway preference
+  preferredGateway        PaymentGateway @default(STRIPE) @map("preferred_gateway")
+  // Stripe Data
   stripeAccountId          String?  @unique @map("stripe_account_id")
   stripeOnboardingComplete Boolean  @default(false) @map("stripe_onboarding_complete")
   stripeChargesEnabled     Boolean  @default(false) @map("stripe_charges_enabled")
   stripePayoutsEnabled     Boolean  @default(false) @map("stripe_payouts_enabled")
-
+  // Paymob Data
+  paymobSubMerchantId     String?        @unique @map("paymob_sub_merchant_id")
+  paymobOnboardingComplete Boolean       @default(false) @map("paymob_onboarding_complete")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 

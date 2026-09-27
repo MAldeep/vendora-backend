@@ -27,7 +27,6 @@ export class TenantServices {
     if (existingTenant) {
       throw new AppError("A store with this slug already exists", 400);
     }
-
     const newTenant = await prisma.$transaction(async (tx) => {
       const tenant = await tx.tenant.create({
         data: {
