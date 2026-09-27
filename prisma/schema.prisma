@@ -117,10 +117,20 @@ model Tenant {
   tenantOrders   TenantOrder[]
   stockMovements StockMovement[]
   carts          Cart[]
-
+  image           TenantImage?
   @@map("tenants")
 }
-
+model TenantImage {
+  id        String   @id @default(uuid())
+  tenantId String @unique @map("tenant_id")
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  url       String 
+  publicId  String   @map("public_id") 
+  altText   String?  @map("alt_text")
+  position  Int      @default(0) 
+  createdAt DateTime @default(now()) @map("created_at")
+  @@map("tenant_images")
+}
 model TenantUserRole {
   id           String      @id @default(uuid())
   userId       String      @map("user_id")

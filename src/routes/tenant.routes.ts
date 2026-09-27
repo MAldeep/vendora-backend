@@ -9,6 +9,7 @@ import { protect } from "../middleware/auth.middleware.js";
 import { requireTenant } from "../middleware/requireTenant.middleware.js";
 import { restrictTo } from "../middleware/restrictTo.js";
 import inventoryRouter from "./inventory.routes.js";
+import { uploadSingleImage } from "../middleware/upload.middleware.js";
 
 const router = Router();
 
@@ -45,6 +46,15 @@ router.patch(
   requireTenant,
   restrictTo("OWNER"),
   TenantControllers.toggleStatus,
+);
+
+router.patch(
+  "/logo",
+  protect,
+  requireTenant,
+  restrictTo("OWNER", "MANAGER"),
+  uploadSingleImage,
+  TenantControllers.addOrUpdateLogo,
 );
 
 export default router;

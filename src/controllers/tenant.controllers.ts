@@ -67,4 +67,17 @@ export class TenantControllers {
       message,
     });
   });
+  static addOrUpdateLogo = catchAsync(async (req: Request, res: Response) => {
+    const tenantId = req.tenantId;
+    if (!tenantId) {
+      throw new AppError("Tenant Id must be provided", 400);
+    }
+    const file = req.file as Express.Multer.File;
+    const tenant = await TenantServices.addOrUpdateLogo(tenantId, file);
+    res.status(200).json({
+      status: "success",
+      message: "Tenant Logo Updated Successfully !",
+      data: { tenant },
+    });
+  });
 }

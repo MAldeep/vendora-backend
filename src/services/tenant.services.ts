@@ -8,6 +8,10 @@ import {
   ToggleTenantStatusInput,
   UpdateTenantInput,
 } from "../types/tenants.types.js";
+import {
+  deleteFromCloudinary,
+  processAndUploadImage,
+} from "../config/cloudinary.js";
 
 export class TenantServices {
   static async create(ownerId: string, data: CreateTenant) {
@@ -100,6 +104,14 @@ export class TenantServices {
             phoneNumber: true,
           },
         },
+        image: {
+          select: {
+            id: true,
+            url: true,
+            publicId: true,
+            altText: true,
+          },
+        },
       },
     });
     if (!tenant) {
@@ -182,5 +194,47 @@ export class TenantServices {
     });
 
     return { message: "Tenant deleted successfully" };
+  }
+  static async addOrUpdateLogo(tenantId: string, file: Express.Multer.File) {
+    if (!file) {
+      throw new AppError("Logo file is required", 400);
+    }
+
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      include: { image: true },
+    });
+
+    if (!tenant) {
+      throw new AppError("Tenant Not Found", 404);
+    }
+
+    if (tenant.image?.publicId) {
+      await deleteFromCloudinary(tenant.image.publicId);
+    }
+
+    const logo = await processAndUploadImage(
+      file.buffer,
+      `tenants/${tenantId}/logo`,
+    );
+
+    const updatedLogo = await prisma.tenantImage.upsert({
+      where: { tenantId },
+      update: {
+        url: logo.url,
+        publicId: logo.publicId,
+      },
+      create: {
+        tenantId,
+        url: logo.url,
+        publicId: logo.publicId,
+        altText: tenant.name,
+      },
+    });
+
+    return {
+      ...tenant,
+      image: updatedLogo,
+    };
   }
 }

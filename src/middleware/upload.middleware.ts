@@ -32,3 +32,4 @@ export const upload = multer({
 
 // Middleware array handling for multiple images
 export const uploadProductImages = upload.array("images", 5);
+export const uploadSingleImage = upload.single("image");
