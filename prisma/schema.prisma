@@ -101,23 +101,30 @@ model User {
 }
 
 model Tenant {
-  id             String           @id @default(uuid())
-  name           String
-  slug           String           @unique
-  ownerId        String           @map("owner_id")
-  owner          User             @relation(fields: [ownerId], references: [id], onDelete: Restrict)
-  isActive       Boolean          @default(true) @map("is_active")
-  createdAt      DateTime         @default(now()) @map("created_at")
-  updatedAt      DateTime         @updatedAt @map("updated_at")
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  ownerId   String   @map("owner_id")
+  owner     User     @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  isActive  Boolean  @default(true) @map("is_active")
+  stripeAccountId          String?  @unique @map("stripe_account_id")
+  stripeOnboardingComplete Boolean  @default(false) @map("stripe_onboarding_complete")
+  stripeChargesEnabled     Boolean  @default(false) @map("stripe_charges_enabled")
+  stripePayoutsEnabled     Boolean  @default(false) @map("stripe_payouts_enabled")
 
-  products       Product[]
-  categories     Category[]
-  tenantRoles    TenantUserRole[]
-  customRoles    CustomRole[]
-  tenantOrders   TenantOrder[]
-  stockMovements StockMovement[]
-  carts          Cart[]
-  image           TenantImage?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  products            Product[]
+  categories          Category[]
+  tenantRoles         TenantUserRole[]
+  customRoles         CustomRole[]
+  tenantOrders        TenantOrder[]
+  stockMovements      StockMovement[]
+  carts               Cart[]
+  image               TenantImage?
+  paymentTransactions PaymentTransaction[]
+
   @@map("tenants")
 }
 model TenantImage {
@@ -147,6 +154,7 @@ model TenantUserRole {
   updatedAt    DateTime    @updatedAt @map("updated_at")
 
   @@unique([userId, tenantId])
+  @@index([tenantId])
   @@map("tenant_user_roles")
 }
 
@@ -171,7 +179,7 @@ model CustomRole {
 model Category {
   id          String     @id @default(uuid())
   name        String
-  slug        String     @unique
+  slug        String
   description String?
   isActive    Boolean    @default(true)
 
@@ -205,7 +213,7 @@ model Product {
   description    String?
   price          Decimal          @db.Decimal(10, 2)
   compareAtPrice Decimal?         @db.Decimal(10, 2) @map("compare_at_price")
-  sku            String           @unique
+  sku            String?
   status         ProductStatus    @default(DRAFT)
   isFeatured     Boolean          @default(false) @map("is_featured")
   createdAt      DateTime         @default(now()) @map("created_at")
@@ -216,6 +224,8 @@ model Product {
   orderItems     OrderItem[]
 
   @@unique([tenantId, slug])
+  @@unique([tenantId, sku])
+  @@index([categoryId])
   @@map("products")
 }
 
@@ -228,7 +238,7 @@ model ProductImage {
   altText   String?  @map("alt_text")
   position  Int      @default(0) 
   createdAt DateTime @default(now()) @map("created_at")
-
+  @@index([productId])
   @@map("product_images")
 }
 
@@ -250,6 +260,7 @@ model ProductVariant {
   cartItems      CartItem[]
 
   @@unique([tenantId, sku])
+  @@index([productId])
   @@map("product_variants")
 }
 
@@ -265,7 +276,8 @@ model Cart {
   updatedAt DateTime   @updatedAt @map("updated_at")
 
   items     CartItem[]
-
+  @@unique([tenantId, userId])
+  @@unique([tenantId, sessionId])
   @@index([tenantId, userId])
   @@index([tenantId, sessionId])
   @@map("carts")
@@ -287,37 +299,57 @@ model CartItem {
 
 // ==================== ORDER MODELS ====================
 model MasterOrder {
-  id              String        @id @default(uuid())
-  userId          String?       @map("user_id") // Optional for Guest Checkout
-  user            User?         @relation(fields: [userId], references: [id], onDelete: Restrict)
-  guestEmail      String?       @map("guest_email")
-  guestName       String?       @map("guest_name")
-  guestPhone      String?       @map("guest_phone")
-  totalAmount     Decimal       @db.Decimal(10, 2) @map("total_amount")
-  paymentStatus   PaymentStatus @default(PENDING) @map("payment_status")
-  paymentGateway  String?       @default("COD") @map("payment_gateway")
-  shippingAddress Json          @db.JsonB @map("shipping_address")
-  createdAt       DateTime      @default(now()) @map("created_at")
-  updatedAt       DateTime      @updatedAt @map("updated_at")
+  id                    String        @id @default(uuid())
+  userId                String?       @map("user_id")
+  user                  User?         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  
+  guestEmail            String?       @map("guest_email")
+  guestName             String?       @map("guest_name")
+  guestPhone            String?       @map("guest_phone")
+  
+  totalAmount           Decimal       @db.Decimal(10, 2) @map("total_amount")
+  currency              String        @default("EGP")
+  
+  paymentStatus         PaymentStatus @default(PENDING) @map("payment_status")
+  paymentGateway        String?       @default("STRIPE") @map("payment_gateway")
+  
+  stripeCheckoutSessionId String?     @unique @map("stripe_checkout_session_id")
+  stripePaymentIntentId   String?     @unique @map("stripe_payment_intent_id")
+  
+  shippingAddress       Json          @db.JsonB @map("shipping_address")
+  createdAt             DateTime      @default(now()) @map("created_at")
+  updatedAt             DateTime      @updatedAt @map("updated_at")
 
-  tenantOrders    TenantOrder[]
+  tenantOrders TenantOrder[]
+  transactions PaymentTransaction[]
 
+  @@index([userId])
+  @@index([stripePaymentIntentId])
   @@map("master_orders")
 }
 
 model TenantOrder {
-  id            String      @id @default(uuid())
-  tenantId      String      @map("tenant_id")
-  tenant        Tenant      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  masterOrderId String      @map("master_order_id")
-  masterOrder   MasterOrder @relation(fields: [masterOrderId], references: [id], onDelete: Cascade)
-  subTotal      Decimal     @db.Decimal(10, 2) @map("sub_total")
-  orderStatus   OrderStatus @default(PENDING) @map("order_status")
-  createdAt     DateTime    @default(now()) @map("created_at")
-  updatedAt     DateTime    @updatedAt @map("updated_at")
+  id             String      @id @default(uuid())
+  tenantId       String      @map("tenant_id")
+  tenant         Tenant      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  masterOrderId  String      @map("master_order_id")
+  masterOrder    MasterOrder @relation(fields: [masterOrderId], references: [id], onDelete: Cascade)
+  
+  subTotal       Decimal     @db.Decimal(10, 2) @map("sub_total")
+  
+  applicationFee Decimal?    @db.Decimal(10, 2) @map("application_fee")
+  netAmount      Decimal?    @db.Decimal(10, 2) @map("net_amount")
+  
+  stripeTransferId String?   @unique @map("stripe_transfer_id")
+  
+  orderStatus    OrderStatus @default(PENDING) @map("order_status")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
 
-  orderItems    OrderItem[]
+  orderItems OrderItem[]
 
+  @@index([masterOrderId])
+  @@index([tenantId])
   @@map("tenant_orders")
 }
 
@@ -333,7 +365,9 @@ model OrderItem {
   unitPrice     Decimal        @db.Decimal(10, 2) @map("unit_price")
   totalPrice    Decimal        @db.Decimal(10, 2) @map("total_price")
   createdAt     DateTime       @default(now()) @map("created_at")
-
+  @@index([tenantOrderId])
+  @@index([productId])
+  @@index([variantId])
   @@map("order_items")
 }
 
@@ -352,4 +386,31 @@ model StockMovement {
 
   @@index([tenantId, variantId])
   @@map("stock_movements")
+}
+
+model PaymentTransaction {
+  id              String       @id @default(uuid())
+  masterOrderId   String?      @map("master_order_id")
+  masterOrder     MasterOrder? @relation(fields: [masterOrderId], references: [id], onDelete: Cascade)
+  
+  tenantId        String?      @map("tenant_id")
+  tenant          Tenant?      @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  
+  stripeAccountId String?      @map("stripe_account_id")
+  
+  eventId         String       @unique @map("event_id")
+  eventType       String       @map("event_type")
+  
+  amount          Decimal?     @db.Decimal(10, 2)
+  currency        String?      @default("EGP")
+  status          String
+  
+  rawPayload      Json?        @map("raw_payload") @db.JsonB
+
+  createdAt       DateTime     @default(now()) @map("created_at")
+
+  @@index([masterOrderId])
+  @@index([tenantId])
+  @@index([eventId])
+  @@map("payment_transactions")
 }
