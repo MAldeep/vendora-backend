@@ -22,6 +22,8 @@ const envSchema = z.object({
   PAYMOB_API_KEY: z.string(),
   PAYMOB_INTEGRATION_ID: z.string(),
   PAYMOB_IFRAME_ID: z.string(),
+  PAYMOB_HMAC_SECRET: z.string(),
+  PAYMOB_MERCHANT_ID: z.string(),
 });
 
 const parseResult = envSchema.safeParse(process.env);
