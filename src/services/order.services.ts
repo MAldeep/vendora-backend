@@ -2,7 +2,13 @@ import { OrderStatus, StockMovementReason } from "@prisma/client";
 import prisma from "../config/prisma.js";
 import { AppError } from "../utils/appError.js";
 import { PrismaAPIFeatures } from "../utils/apiFeatures.js";
-import { PaymentService } from "./payment/payment.service.js";
+import { PaymentGatewayFactory } from "./payment/factories/payment-gateway.factory.js";
+import { PaymentProviderType } from "./payment/factories/vendor-onboarding.factory.js";
+import {
+  CreateCheckoutSessionInput,
+  PaymentItem,
+} from "./payment/interfaces/payment-gateway.interface.js";
+import { env } from "../config/env.js";
 
 interface CheckoutDTO {
   userId?: string;
@@ -11,7 +17,7 @@ interface CheckoutDTO {
   guestEmail?: string;
   guestPhone?: string;
   shippingAddress: Record<string, any>;
-  paymentGateway: string;
+  paymentGateway: PaymentProviderType;
 }
 export class OrderServices {
   /*
@@ -28,140 +34,166 @@ export class OrderServices {
       paymentGateway,
     } = dto;
 
-    // 1- check for identity
-    if (!userId && !sessionId && !guestEmail) {
+    // 1- User identity validation
+    if (!userId && !guestEmail) {
       throw new AppError(
-        "User identification (Auth token, Session ID, or Guest details) is required",
+        "Customer identification (User account or Guest email) is required",
         400,
       );
     }
 
-    // 2- transaction
-    const masterOrder = await prisma.$transaction(async (tx) => {
-      // a. get all carts
-      const carts = await tx.cart.findMany({
-        where: {
-          ...(userId ? { userId } : { sessionId }),
-        },
-        include: {
-          items: {
-            include: {
-              variant: {
-                include: {
-                  product: {
-                    select: {
-                      id: true,
-                      title: true,
-                      status: true,
+    let customerProfile = {
+      name: guestName || "Guest Customer",
+      email: guestEmail || "",
+      phone: guestPhone || "",
+    };
+
+    if (userId) {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { fullName: true, email: true, phoneNumber: true },
+      });
+
+      if (user) {
+        customerProfile = {
+          name: user.fullName || customerProfile.name,
+          email: user.email || customerProfile.email,
+          phone: user.phoneNumber || customerProfile.phone,
+        };
+      }
+    }
+
+    // 2- DB Transaction
+    const masterOrder = await prisma.$transaction(
+      async (tx) => {
+        // a- Fetch carts
+        const carts = await tx.cart.findMany({
+          where: userId ? { userId } : { sessionId },
+          include: {
+            items: {
+              include: {
+                variant: {
+                  include: {
+                    product: {
+                      select: {
+                        id: true,
+                        title: true,
+                        status: true,
+                      },
                     },
                   },
                 },
               },
             },
           },
-        },
-      });
+        });
 
-      // b. get all items in all carts and check for zero condition
-      const allCartItems = carts.flatMap((cart) => cart.items);
+        const allCartItems = carts.flatMap((cart) => cart.items);
 
-      if (allCartItems.length === 0) {
-        throw new AppError("Your cart is empty. Cannot process checkout", 400);
-      }
-
-      // check for all items status && stock qty
-      for (const item of allCartItems) {
-        if (item.variant.product.status !== "PUBLISHED") {
+        if (allCartItems.length === 0) {
           throw new AppError(
-            `Product "${item.variant.product.title}" is no longer available`,
+            "Your cart is empty. Cannot process checkout",
             400,
           );
         }
 
-        if (item.variant.stockQuantity < item.quantity) {
-          throw new AppError(
-            `Insufficient stock for product variant "${item.variant.sku}". Requested: ${item.quantity}, Available: ${item.variant.stockQuantity}`,
-            400,
-          );
-        }
-      }
+        // b- Validate products status & stock before processing
+        for (const item of allCartItems) {
+          if (item.variant.product.status !== "PUBLISHED") {
+            throw new AppError(
+              `Product "${item.variant.product.title}" is no longer available`,
+              400,
+            );
+          }
 
-      // c. prepare items
-      const itemsByTenant = new Map<string, typeof allCartItems>();
-
-      for (const item of allCartItems) {
-        const tenantId = item.variant.tenantId;
-        const tenantItems = itemsByTenant.get(tenantId) || [];
-        tenantItems.push(item);
-        itemsByTenant.set(tenantId, tenantItems);
-      }
-
-      // master amount
-      let masterTotalAmount = 0;
-
-      // d. create the master order (with zero amount to be precisely calculated later)
-      const masterOrder = await tx.masterOrder.create({
-        data: {
-          userId: userId || null,
-          guestName: userId ? null : guestName,
-          guestEmail: userId ? null : guestEmail,
-          guestPhone: userId ? null : guestPhone,
-          shippingAddress,
-          paymentGateway,
-          paymentStatus: "PENDING",
-          totalAmount: 0,
-        },
-      });
-
-      // e. create tenant order and create stock movement
-      for (const [tenantId, items] of itemsByTenant.entries()) {
-        let tenantSubTotal = 0;
-
-        // tenant subtotal
-        for (const item of items) {
-          const unitPrice = Number(item.variant.price ?? 0);
-          tenantSubTotal += unitPrice * item.quantity;
+          if (item.variant.stockQuantity < item.quantity) {
+            throw new AppError(
+              `Insufficient stock for product variant "\({item.variant.sku}". Requested:\){item.quantity}, Available: ${item.variant.stockQuantity}`,
+              400,
+            );
+          }
         }
 
-        masterTotalAmount += tenantSubTotal;
+        // Group items by tenant
+        const itemsByTenant = new Map();
+        for (const item of allCartItems) {
+          const tenantId = item.variant.tenantId;
+          const tenantItems = itemsByTenant.get(tenantId) || [];
+          tenantItems.push(item);
+          itemsByTenant.set(tenantId, tenantItems);
+        }
 
-        // create tenant order
-        const tenantOrder = await tx.tenantOrder.create({
+        let masterTotalAmount = 0;
+
+        // c- Create Master Order
+        const masterOrderRecord = await tx.masterOrder.create({
           data: {
-            tenantId,
-            masterOrderId: masterOrder.id,
-            subTotal: tenantSubTotal,
-            orderStatus: "PENDING",
+            userId: userId || null,
+            guestName: userId ? null : customerProfile.name,
+            guestEmail: userId ? null : customerProfile.email,
+            guestPhone: userId ? null : customerProfile.phone,
+            shippingAddress,
+            paymentGateway,
+            paymentStatus: "PENDING",
+            totalAmount: 0,
           },
         });
 
-        // order item && decrement qty in stock && log stock movement
-        for (const item of items) {
-          const unitPrice = Number(item.variant.price ?? 0);
-          const totalPrice = unitPrice * item.quantity;
+        // d- Process Tenants Orders & Atomic Stock Decrement
+        for (const [tenantId, items] of itemsByTenant.entries()) {
+          let tenantSubTotal = 0;
 
-          await tx.orderItem.create({
+          for (const item of items) {
+            const unitPrice = Number(item.variant.price ?? 0);
+            tenantSubTotal += unitPrice * item.quantity;
+          }
+
+          masterTotalAmount += tenantSubTotal;
+
+          const tenantOrder = await tx.tenantOrder.create({
             data: {
+              tenantId,
+              masterOrderId: masterOrderRecord.id,
+              subTotal: tenantSubTotal,
+              orderStatus: "PENDING",
+            },
+          });
+
+          const orderItemsData = [];
+          const stockMovementsData = [];
+
+          for (const item of items) {
+            const unitPrice = Number(item.variant.price ?? 0);
+            const totalPrice = unitPrice * item.quantity;
+
+            // Atomic Stock Decrement to prevent Race Condition
+            const stockUpdate = await tx.productVariant.updateMany({
+              where: {
+                id: item.variantId,
+                stockQuantity: { gte: item.quantity },
+              },
+              data: {
+                stockQuantity: { decrement: item.quantity },
+              },
+            });
+
+            if (stockUpdate.count === 0) {
+              throw new AppError(
+                `Stock changed during checkout for variant "${item.variant.sku}". Please try again.`,
+                400,
+              );
+            }
+
+            orderItemsData.push({
               tenantOrderId: tenantOrder.id,
               productId: item.variant.productId,
               variantId: item.variantId,
               quantity: item.quantity,
               unitPrice,
               totalPrice,
-            },
-          });
+            });
 
-          await tx.productVariant.update({
-            where: { id: item.variantId },
-            data: {
-              stockQuantity: {
-                decrement: item.quantity,
-              },
-            },
-          });
-
-          await tx.stockMovement.create({
-            data: {
+            stockMovementsData.push({
               tenantId,
               variantId: item.variantId,
               quantity: -item.quantity,
@@ -169,50 +201,90 @@ export class OrderServices {
               referenceId: tenantOrder.id,
               note: `Customer order placement (TenantOrder: ${tenantOrder.id})`,
               createdById: userId || null,
-            },
-          });
-        }
-      }
+            });
+          }
 
-      // master order with master total
-      const updatedMasterOrder = await tx.masterOrder.update({
-        where: { id: masterOrder.id },
-        data: { totalAmount: masterTotalAmount },
-        include: {
-          tenantOrders: {
-            include: {
-              orderItems: true,
+          // Batch inserts for better DB performance
+          await tx.orderItem.createMany({ data: orderItemsData });
+          await tx.stockMovement.createMany({ data: stockMovementsData });
+        }
+
+        // e- Update Master Order Total
+        const updatedMasterOrder = await tx.masterOrder.update({
+          where: { id: masterOrderRecord.id },
+          data: { totalAmount: masterTotalAmount },
+          include: {
+            tenantOrders: {
+              include: {
+                orderItems: {
+                  include: {
+                    product: { select: { title: true } },
+                  },
+                },
+                tenant: {
+                  select: {
+                    id: true,
+                    name: true,
+                    stripeAccountId: true,
+                    paymobSubMerchantId: true,
+                  },
+                },
+              },
             },
           },
-        },
-      });
+        });
 
-      // clear carts
-      const cartIds = carts.map((c) => c.id);
-      await tx.cartItem.deleteMany({
-        where: { cartId: { in: cartIds } },
-      });
-      await tx.cart.deleteMany({
-        where: { id: { in: cartIds } },
-      });
+        // f- Delete Carts
+        const cartIds = carts.map((c) => c.id);
+        await tx.cartItem.deleteMany({
+          where: { cartId: { in: cartIds } },
+        });
+        await tx.cart.deleteMany({
+          where: { id: { in: cartIds } },
+        });
 
-      return updatedMasterOrder;
-    });
-
-    const paymentResult = await PaymentService.processPayment(paymentGateway, {
-      orderId: masterOrder.id,
-      amount: Number(masterOrder.totalAmount),
-      currency: "EGP",
-      customer: {
-        name: masterOrder.guestName,
-        email: masterOrder.guestEmail,
-        phone: masterOrder.guestPhone,
+        return updatedMasterOrder;
       },
-    });
+      { timeout: 15000 },
+    );
+
+    // 3- Prepare Payment Payload
+    const paymentItems: PaymentItem[] = masterOrder.tenantOrders.flatMap(
+      (tOrder) =>
+        tOrder.orderItems.map((item) => ({
+          name: item.product.title,
+          unitAmount: Number(item.unitPrice),
+          quantity: Number(item.quantity),
+        })),
+    );
+
+    const primaryTenantOrder = masterOrder.tenantOrders[0];
+    const vendorProviderAccountId =
+      paymentGateway === "STRIPE"
+        ? (primaryTenantOrder?.tenant.stripeAccountId ?? undefined)
+        : (primaryTenantOrder?.tenant.paymobSubMerchantId ?? undefined);
+
+    const frontendUrl = env.CLIENT_URL || "http://localhost:3000";
+
+    const sessionInput: CreateCheckoutSessionInput = {
+      tenantId: primaryTenantOrder?.tenantId || "",
+      orderId: masterOrder.id,
+      customerEmail: customerProfile.email,
+      currency: "EGP",
+      items: paymentItems,
+      successUrl: `\({frontendUrl}/checkout/success?orderId=\){masterOrder.id}`,
+      cancelUrl: `\({frontendUrl}/checkout/cancel?orderId=\){masterOrder.id}`,
+      vendorProviderAccountId,
+      platformFeeAmount: 0,
+    };
+
+    const gatewayProvider = PaymentGatewayFactory.getProvider(paymentGateway);
+    const paymentSession =
+      await gatewayProvider.createCheckoutSeesion(sessionInput);
 
     return {
       masterOrder,
-      paymentResult,
+      paymentSession,
     };
   }
   /* 

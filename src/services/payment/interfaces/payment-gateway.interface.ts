@@ -19,7 +19,7 @@ export interface CreateCheckoutSessionInput {
 
 export interface CheckoutSessionResult {
   sessionId: string;
-  chechoutUrl: string;
+  checkoutUrl: string;
 }
 
 export interface IPaymentGatewayProvider {
