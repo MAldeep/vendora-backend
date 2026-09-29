@@ -1,6 +1,6 @@
 import Stripe from "stripe";
 import { env } from "./env.js";
-const stripeSecretKey = env.STRIPE_SECRET_KEY;
+export const stripeSecretKey = env.STRIPE_SECRET_KEY;
 if (stripeSecretKey) {
   throw new Error("Secret key of stripe not founded");
 }

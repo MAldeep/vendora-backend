@@ -7,7 +7,7 @@ export interface StandardWebhookEvent {
     providerTransactionId?: string;
     amount?: number;
     currency?: string;
-    rawPayload: Record<string, unknown>;
+    rawPayload: object;
   };
 }
 
