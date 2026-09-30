@@ -57,3 +57,21 @@ src/
 ├── app.ts           # Express application setup & middleware mounting
 └── server.ts        # Server entry point & database initialization
 ```
+
+## 📚 API Documentation & Testing
+
+### 🟢 Interactive Swagger UI
+
+When the server is running locally, access the live interactive API documentation at:
+
+- **Swagger Documentation**: [http://localhost:5000/api-docs](http://localhost:5000/api-docs)
+- **OpenAPI JSON Spec**: [http://localhost:5000/api-docs.json](http://localhost:5000/api-docs.json)
+
+### 🟧 Postman Collection
+
+You can easily test all endpoints using the pre-configured Postman Collection:
+
+1. Download or locate the [`docs/vendora-postman-collection.json`](./docs/vendora-postman-collection.json) file in this repository.
+2. Open Postman and click **Import**.
+3. Drag & drop the JSON file.
+4. Set up your local Environment Variables (`baseUrl`, `tenantId`, `token`).
