@@ -71,7 +71,7 @@ When the server is running locally, access the live interactive API documentatio
 
 You can easily test all endpoints using the pre-configured Postman Collection:
 
-1. Download or locate the [`docs/vendora-postman-collection.json`](./docs/vendora-postman-collection.json) file in this repository.
+1. Download or locate the [`docs/vendora-postman-collection.json`](vendora-postman-collection.json) file in this repository.
 2. Open Postman and click **Import**.
 3. Drag & drop the JSON file.
 4. Set up your local Environment Variables (`baseUrl`, `tenantId`, `token`).
