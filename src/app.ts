@@ -18,6 +18,7 @@ import productsRouter from "./routes/product.routes.js";
 import tenantOrdersRouter from "./routes/tenantOrders.routes.js";
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./config/swagger.js";
+import categoryRouter from "./routes/category.route.js";
 // 1- App
 const app = express();
 
@@ -87,6 +88,7 @@ app.use("/api/v1/customRoles", customRolesRouter);
 app.use("/api/v1/orders", ordersRouter);
 app.use("api/v1/products", productsRouter);
 app.use("/api/v1/tenantsOrders", tenantOrdersRouter);
+app.use("/api/v1/categories", categoryRouter);
 
 // 8. 404 Route Handler
 app.use((req: Request, _res: Response, next: NextFunction) => {
