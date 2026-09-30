@@ -8,68 +8,13 @@ import { WebhookHandlerFactory } from "./payment/factories/webhook-handler.facto
 import { StandardWebhookEvent } from "./payment/interfaces/webhook-handler.interface.js";
 import prisma from "../config/prisma.js";
 import { AppError } from "../utils/appError.js";
+import { env } from "../config/env.js";
 
 export class WebhookService {
-  /*
-  Handling Webhooks 
-   */
-  async handleWebhook(params: {
-    provider: PaymentProviderType;
-    rawBody: Buffer | string;
-    signature: string | Record<string, unknown>;
-    secret?: string;
-  }) {
-    const { provider, rawBody, signature, secret } = params;
-
-    // get the provider and return webhook event
-    const handler = WebhookHandlerFactory.getProvider(provider);
-    const event: StandardWebhookEvent = await handler.verifyAndParseEvent(
-      rawBody,
-      signature,
-      secret,
-    );
-
-    // Idempotency check
-    const existingTransaction = await prisma.paymentTransaction.findUnique({
-      where: { eventId: event.eventId },
-    });
-
-    if (existingTransaction) {
-      return {
-        processed: false,
-        reason: "EVENT_ALREADY_PROCESSED",
-        eventId: event.eventId,
-      };
-    }
-
-    // Directing the process acc. to event type
-    switch (event.type) {
-      case "PAYMENT_SUCCESS":
-        return await this.handlePaymentSuccess(event, provider);
-
-      case "PAYMENT_FAILED":
-        return await this.handlePaymentFailed(event, provider);
-
-      case "ACCOUNT_UPDATED":
-        return await this.handleAccountUpdated(event, provider);
-
-      default:
-        await prisma.paymentTransaction.create({
-          data: {
-            eventId: event.eventId,
-            eventType: `UNKNOWN_${provider}_EVENT`,
-            status: "IGNORED",
-            rawPayload: (event.data.rawPayload as any) || {},
-          },
-        });
-        return { processed: true, status: "IGNORED" };
-    }
-  }
-
   /**
     Handle Payment Success
    */
-  private async handlePaymentSuccess(
+  private static async handlePaymentSuccess(
     event: StandardWebhookEvent,
     provider: PaymentProviderType,
   ) {
@@ -125,7 +70,7 @@ export class WebhookService {
   /**
   Handle Payment Failure
    */
-  private async handlePaymentFailed(
+  private static async handlePaymentFailed(
     event: StandardWebhookEvent,
     _provider: PaymentProviderType,
   ) {
@@ -207,7 +152,7 @@ export class WebhookService {
   /**
     Onboarding Status Updates
    */
-  private async handleAccountUpdated(
+  private static async handleAccountUpdated(
     event: StandardWebhookEvent,
     _provider: PaymentProviderType,
   ) {
@@ -228,5 +173,65 @@ export class WebhookService {
       processed: true,
       transactionId: transaction.id,
     };
+  }
+  /*
+  Handling Webhooks 
+   */
+  public static async handleWebhook(params: {
+    provider: PaymentProviderType;
+    rawBody: Buffer | string;
+    signature: string | Record<string, unknown>;
+    secret?: string;
+  }) {
+    const { provider, rawBody, signature, secret } = params;
+    // secret
+    const webhookSecret =
+      params.secret ||
+      (provider === "STRIPE"
+        ? env.STRIPE_WEBHOOK_SECRET
+        : env.PAYMOB_HMAC_SECRET);
+    // get the provider and return webhook event
+    const handler = WebhookHandlerFactory.getProvider(provider);
+    const event: StandardWebhookEvent = await handler.verifyAndParseEvent(
+      rawBody,
+      signature,
+      secret,
+    );
+
+    // Idempotency check
+    const existingTransaction = await prisma.paymentTransaction.findUnique({
+      where: { eventId: event.eventId },
+    });
+
+    if (existingTransaction) {
+      return {
+        processed: false,
+        reason: "EVENT_ALREADY_PROCESSED",
+        eventId: event.eventId,
+      };
+    }
+
+    // Directing the process acc. to event type
+    switch (event.type) {
+      case "PAYMENT_SUCCESS":
+        return await this.handlePaymentSuccess(event, provider);
+
+      case "PAYMENT_FAILED":
+        return await this.handlePaymentFailed(event, provider);
+
+      case "ACCOUNT_UPDATED":
+        return await this.handleAccountUpdated(event, provider);
+
+      default:
+        await prisma.paymentTransaction.create({
+          data: {
+            eventId: event.eventId,
+            eventType: `UNKNOWN_${provider}_EVENT`,
+            status: "IGNORED",
+            rawPayload: (event.data.rawPayload as any) || {},
+          },
+        });
+        return { processed: true, status: "IGNORED" };
+    }
   }
 }
