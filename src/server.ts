@@ -10,7 +10,7 @@ process.on("uncaughtException", (err: Error) => {
 });
 
 const PORT = env.PORT || 5000;
-const DB_URI = env.DB_URI;
+const DB_URI = env.DATABASE_URL;
 
 let server: Server;
 async function startServer(): Promise<void> {
