@@ -9,4 +9,6 @@ router.post(
   WebhookController.handleStripeWebhook,
 );
 
+router.post("/paymob", WebhookController.handlePaymobWebhook);
+
 export default router;
