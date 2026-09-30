@@ -16,6 +16,8 @@ import customRolesRouter from "./routes/customRole.routes.js";
 import ordersRouter from "./routes/order.routes.js";
 import productsRouter from "./routes/product.routes.js";
 import tenantOrdersRouter from "./routes/tenantOrders.routes.js";
+import swaggerUi from "swagger-ui-express";
+import { swaggerSpec } from "./config/swagger.js";
 // 1- App
 const app = express();
 
@@ -69,7 +71,13 @@ app.use("/api/v1/webhooks", webhookRoutes);
 // 6. Body Parsers & Cookies
 app.use(express.json({ limit: "10kb" }));
 app.use(cookieParser());
+// Swagger
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
+app.get("/api-docs.json", (_req, res) => {
+  res.setHeader("Content-Type", "application/json");
+  res.send(swaggerSpec);
+});
 // 7- Routes
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/roles", customRoleRoutes);
