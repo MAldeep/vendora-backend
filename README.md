@@ -8,13 +8,13 @@ This service manages multi-tenant data isolation, Role-Based Access Control (RBA
 
 ## 🛠️ Tech Stack & Architecture
 
-- **Runtime & Framework:** Node.js, TypeScript, Express / NestJS
+- **Runtime & Framework:** Node.js, TypeScript, Express
 - **Database & ORM:** PostgreSQL, Prisma ORM
-- **Caching & Queues:** Redis, BullMQ
+- **Caching & Queues:** Redis, BullMQ (Still In Progress)
 - **Authentication:** JWT (JSON Web Tokens) with Refresh Tokens & Cookie Sessioning
-- **Search Engine:** Meilisearch
+- **Search Engine:** Meilisearch (Still IN Progress)
 - **Media Uploads:** Cloudinary
-- **Payment Processing:** Paymob
+- **Payment Processing:** Paymob && Stripe
 
 ---
 
@@ -45,15 +45,15 @@ This service manages multi-tenant data isolation, Role-Based Access Control (RBA
 
 ```text
 src/
-├── config/             # Environment variables & Database configs
-├── modules/
-│   ├── auth/           # Authentication & RBAC Middlewares
-│   ├── tenants/        # Tenant onboarding & settings
-│   ├── products/       # Products, categories & dynamic variants
-│   ├── cart/           # Redis cart sync engine
-│   ├── orders/         # Master & Sub-order management
-│   └── payments/       # Gateway integrations (Paymob/Stripe)
-├── jobs/               # BullMQ Background Queues & Processors
-├── common/             # Interceptors, filters & global utilities
-└── prisma/             # Schema definitions & Database migrations
+├── config/          # Stripe & Paymob configurations
+├── context/         # Request context & AsyncLocalStorage / Tenant context
+├── middleware/      # Auth, Error handling & Raw-body middlewares
+├── services/        # Core business logic (Checkout, Webhook, Onboarding, etc.)
+├── controllers/     # Request handlers & HTTP response wrappers
+├── routes/          # API Route definitions (Payment, Webhook, Tenant, etc.)
+├── types/           # Custom TypeScript definitions & Interfaces
+├── validation/      # Request payload validation schemas
+├── utils/           # Helper functions, AppError & catchAsync wrappers
+├── app.ts           # Express application setup & middleware mounting
+└── server.ts        # Server entry point & database initialization
 ```
