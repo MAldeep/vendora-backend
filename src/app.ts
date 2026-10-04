@@ -1,5 +1,4 @@
 import express, { Request, Response, NextFunction } from "express";
-import * as helmetModule from "helmet";
 import cors, { CorsOptions } from "cors";
 import { rateLimit } from "express-rate-limit";
 import { env } from "./config/env.js";
@@ -19,11 +18,11 @@ import tenantOrdersRouter from "./routes/tenantOrders.routes.js";
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./config/swagger.js";
 import categoryRouter from "./routes/category.route.js";
+import helmet from "helmet";
 // 1- App
 const app = express();
 
 // 2- Security Headers
-const helmet = helmetModule.default;
 app.use(helmet());
 
 // 3- CORS setup
