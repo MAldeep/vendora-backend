@@ -1,7 +1,7 @@
 import express, { Request, Response, NextFunction } from "express";
 import helmet from "helmet";
 import cors, { CorsOptions } from "cors";
-import rateLimit from "express-rate-limit";
+import { rateLimit } from "express-rate-limit";
 import { env } from "./config/env.js";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
