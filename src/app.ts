@@ -86,7 +86,7 @@ app.use("/api/v1/cart", cartRouter);
 app.use("/api/v1/tenants", tenantRouter);
 app.use("/api/v1/customRoles", customRolesRouter);
 app.use("/api/v1/orders", ordersRouter);
-app.use("api/v1/products", productsRouter);
+app.use("/api/v1/products", productsRouter);
 app.use("/api/v1/tenantsOrders", tenantOrdersRouter);
 app.use("/api/v1/categories", categoryRouter);
 
