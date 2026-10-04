@@ -7,6 +7,7 @@ import {
 } from "../validation/auth.schema.js";
 import { env } from "../config/env.js";
 import { AppError } from "../utils/appError.js";
+import { AuthRequest } from "../types/http.js";
 const refreshTokenCookiesOptions: CookieOptions = {
   httpOnly: true,
   secure: env.NODE_ENV === "production",
@@ -101,7 +102,7 @@ export class AuthController {
     });
   });
   // me
-  static getMe = catchAsync(async (req: Request, res: Response) => {
+  static getMe = catchAsync(async (req: AuthRequest, res: Response) => {
     const id = req.user?.id;
     if (!id) {
       throw new AppError("User ID missing from request context", 400);
