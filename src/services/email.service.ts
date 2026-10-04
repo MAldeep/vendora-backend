@@ -1,4 +1,3 @@
-import { transporter } from "../config/email.config,.js";
 import { env } from "../config/env.js";
 
 interface IEmailOptions {
@@ -9,15 +8,38 @@ interface IEmailOptions {
 }
 
 export class EmailService {
-  private static async send(options: IEmailOptions): Promise<void> {
-    const mailOptions = {
-      from: `Vendora - Multi-Tenant : ${env.SMTP_Username}`,
-      to: options.to,
-      subject: options.subject,
-      html: options.html,
-      text: options.text,
-    };
-    await transporter.sendMail(mailOptions);
+  private static async send(options: IEmailOptions) {
+    try {
+      const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+          accept: "application/json",
+          "content-type": "application/json",
+          "api-key": env.BREVO_API_KEY || process.env.BREVO_API_KEY || "",
+        },
+        body: JSON.stringify({
+          sender: {
+            name: env.SENDER_NAME || "MediDesk - Medical Care",
+            email: env.SENDER_EMAIL || "",
+          },
+          to: [{ email: options.to }],
+          subject: options.subject,
+          htmlContent: options.html,
+          textContent: options.text,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error("Brevo API Error: " + JSON.stringify(errorData));
+      }
+
+      const data = await response.json();
+      console.log("Email sent successfully via Brevo API:", data);
+    } catch (error) {
+      console.error("Error sending email via Brevo:", error);
+      throw new Error("Failed to send email");
+    }
   }
 
   static async registerInitUser(
