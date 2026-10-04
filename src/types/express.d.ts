@@ -1,24 +1,35 @@
-import { TokenPayload } from "../utils/auth.js";
+import type {
+  TenantRole,
+  TenantUserRole,
+  CustomRole,
+  User,
+} from "@prisma/client";
+
+import type { JwtPayload } from "../utils/auth.js";
 
 declare global {
   namespace Express {
     interface Request {
-      user?: any;
-      tenantId?: string;
-      tokenPayload?: TokenPayload;
-      tenantRole?: string;
-      tenantUserRole?: any;
-    }
-  }
-}
+      user?: User;
 
-declare module "express-serve-static-core" {
-  interface Request {
-    user?: any;
-    tenantId?: string;
-    tokenPayload?: TokenPayload;
-    tenantRole?: string;
-    tenantUserRole?: any;
+      tokenPayload?: JwtPayload & {
+        iat?: number;
+      };
+
+      tenantId?: string;
+
+      tenantRole?: TenantRole;
+
+      tenantUserRole?: TenantUserRole & {
+        customRole?: CustomRole | null;
+      };
+
+      files?:
+        | Express.Multer.File[]
+        | {
+            [fieldname: string]: Express.Multer.File[];
+          };
+    }
   }
 }
 
