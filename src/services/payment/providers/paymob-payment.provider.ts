@@ -74,7 +74,7 @@ export class PaymobPaymentProvider implements IPaymentGatewayProvider {
 
     return {
       sessionId: paymobOrderId.toString(),
-      chechoutUrl: checkoutUrl,
+      checkoutUrl,
     };
   }
 

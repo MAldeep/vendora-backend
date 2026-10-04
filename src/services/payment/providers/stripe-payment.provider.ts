@@ -46,7 +46,7 @@ export class StripePaymentProvider implements IPaymentGatewayProvider {
     const session = await stripe.checkout.sessions.create(sessionParams);
     return {
       sessionId: session.id,
-      chechoutUrl: session.url!,
+      checkoutUrl: session.url!,
     };
   }
 

@@ -25,7 +25,7 @@ export class StripeWebhookProvider implements IWebhookHandlerProvider {
     const event = stripe.webhooks.constructEvent(
       rawBody,
       sigString,
-      webhookSecret,
+      webhookSecret as string,
     );
 
     let eventType: StandardWebhookEvent["type"] = "UNKNOWN";
