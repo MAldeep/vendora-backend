@@ -1,4 +1,4 @@
-import "express";
+import "express-serve-static-core";
 import type {
   TenantRole,
   TenantUserRole,
