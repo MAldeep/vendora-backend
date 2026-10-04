@@ -1,12 +1,13 @@
-import { NextFunction, Request, Response } from "express";
+import { NextFunction, Response } from "express";
 import { AppError } from "../utils/appError.js";
 import prisma from "../config/prisma.js";
 import { catchAsync } from "../utils/catchAsync.js";
 import { TenantRole } from "@prisma/client";
+import { AuthRequest } from "../types/http.js";
 
 export const restrictTo = (...allowedRoles: TenantRole[]) => {
   return catchAsync(
-    async (req: Request, _res: Response, next: NextFunction) => {
+    async (req: AuthRequest, _res: Response, next: NextFunction) => {
       if (!req.user || !req.tenantId) {
         return next(
           new AppError(

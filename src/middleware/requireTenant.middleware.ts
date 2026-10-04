@@ -1,9 +1,10 @@
 import prisma from "../config/prisma.js";
+import { AuthRequest } from "../types/http.js";
 import { AppError } from "../utils/appError.js";
 import { catchAsync } from "../utils/catchAsync.js";
-import { Request, Response, NextFunction } from "express";
+import { Response, NextFunction } from "express";
 export const requireTenant = catchAsync(
-  async (req: Request, _res: Response, next: NextFunction) => {
+  async (req: AuthRequest, _res: Response, next: NextFunction) => {
     const tenantId = [
       req.headers["x-tenant-id"],
       req.params.tenantId,

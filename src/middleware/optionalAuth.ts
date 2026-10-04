@@ -1,10 +1,11 @@
-import { Request, Response, NextFunction } from "express";
+import { Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { env } from "../config/env.js";
+import { AuthRequest } from "../types/http.js";
 
 export const optionalAuth = (
-  req: Request,
-  res: Response,
+  req: AuthRequest,
+  _res: Response,
   next: NextFunction,
 ) => {
   const authHeader = req.headers.authorization;

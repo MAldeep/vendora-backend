@@ -1,12 +1,13 @@
-import { Request, Response, NextFunction } from "express";
+import { Response, NextFunction } from "express";
 import { Permission, TenantRole, UserType } from "@prisma/client";
 import prisma from "../config/prisma.js";
 import { DEFAULT_ROLE_PERMISSIONS } from "../config/permissions.js";
 import { AppError } from "../utils/appError.js";
 import { getTenantId } from "../context/tenant.context.js";
+import { AuthRequest } from "../types/http.js";
 
 export const requirePermission = (...requiredPermissions: Permission[]) => {
-  return async (req: Request, _res: Response, next: NextFunction) => {
+  return async (req: AuthRequest, _res: Response, next: NextFunction) => {
     try {
       const userId = req.user?.id;
 

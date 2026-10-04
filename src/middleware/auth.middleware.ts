@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response } from "express";
+import { NextFunction, Response } from "express";
 import { catchAsync } from "../utils/catchAsync.js";
 import { AppError } from "../utils/appError.js";
 import {
@@ -6,9 +6,10 @@ import {
   verifyAccessToken,
 } from "../utils/passwordAndTokens.utils.js";
 import prisma from "../config/prisma.js";
+import { AuthRequest } from "../types/http.js";
 
 export const protect = catchAsync(
-  async (req: Request, _res: Response, next: NextFunction) => {
+  async (req: AuthRequest, _res: Response, next: NextFunction) => {
     let token: string | undefined;
     if (
       req.headers.authorization &&
