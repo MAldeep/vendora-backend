@@ -7,27 +7,29 @@ import type {
 
 import type { JwtPayload } from "../utils/auth.js";
 
-declare module "express-serve-static-core" {
-  interface Request {
-    user?: User;
+declare global {
+  namespace Express {
+    interface Request {
+      user?: User;
 
-    tokenPayload?: JwtPayload & {
-      iat?: number;
-    };
+      tokenPayload?: JwtPayload & {
+        iat?: number;
+      };
 
-    tenantId?: string;
+      tenantId?: string;
 
-    tenantRole?: TenantRole;
+      tenantRole?: TenantRole;
 
-    tenantUserRole?: TenantUserRole & {
-      customRole?: CustomRole | null;
-    };
+      tenantUserRole?: TenantUserRole & {
+        customRole?: CustomRole | null;
+      };
 
-    files?:
-      | Express.Multer.File[]
-      | {
-          [fieldname: string]: Express.Multer.File[];
-        };
+      files?:
+        | Express.Multer.File[]
+        | {
+            [fieldname: string]: Express.Multer.File[];
+          };
+    }
   }
 }
 
