@@ -1,6 +1,6 @@
-import express, { Request, Response, NextFunction } from "express";
+import express from "express";
 import * as helmetModule from "helmet";
-import cors, { CorsOptions } from "cors";
+import cors from "cors";
 import { rateLimit } from "express-rate-limit";
 import { env } from "./config/env.js";
 import morgan from "morgan";
@@ -21,52 +21,46 @@ import { swaggerSpec } from "./config/swagger.js";
 import categoryRouter from "./routes/category.route.js";
 // 1- App
 const app = express();
-
 // 2- Security Headers
 const helmet = helmetModule.default;
 app.use(helmet());
-
 // 3- CORS setup
-
-const allowedOrigins: string[] = ["http://localhost:3000"];
-
-const corsOptions: CorsOptions = {
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS policy"));
-    }
-  },
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-  allowedHeaders: [
-    "Content-Type",
-    "Authorization",
-    "X-App-Version",
-    "X-Requested-With",
-    "Accept",
-  ],
-  credentials: true,
+const allowedOrigins = ["http://localhost:3000"];
+const corsOptions = {
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        }
+        else {
+            callback(new Error("Not allowed by CORS policy"));
+        }
+    },
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allowedHeaders: [
+        "Content-Type",
+        "Authorization",
+        "X-App-Version",
+        "X-Requested-With",
+        "Accept",
+    ],
+    credentials: true,
 };
 app.use(cors(corsOptions));
-
 // 4- Rate limiter
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: {
-    status: "fail",
-    message:
-      "Too many requests from this IP, please try again after 15 minutes!",
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    message: {
+        status: "fail",
+        message: "Too many requests from this IP, please try again after 15 minutes!",
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
 });
 app.use("/api", limiter);
-
 // 5- logger
 if (env.NODE_ENV === "development") {
-  app.use(morgan("dev"));
+    app.use(morgan("dev"));
 }
 // 6- webhooks
 app.use("/api/v1/webhooks", webhookRoutes);
@@ -75,10 +69,9 @@ app.use(express.json({ limit: "10kb" }));
 app.use(cookieParser());
 // Swagger
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-
 app.get("/api-docs.json", (_req, res) => {
-  res.setHeader("Content-Type", "application/json");
-  res.send(swaggerSpec);
+    res.setHeader("Content-Type", "application/json");
+    res.send(swaggerSpec);
 });
 // 7- Routes
 app.use("/api/v1/auth", authRoutes);
@@ -90,13 +83,10 @@ app.use("/api/v1/orders", ordersRouter);
 app.use("api/v1/products", productsRouter);
 app.use("/api/v1/tenantsOrders", tenantOrdersRouter);
 app.use("/api/v1/categories", categoryRouter);
-
 // 8. 404 Route Handler
-app.use((req: Request, _res: Response, next: NextFunction) => {
-  next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
+app.use((req, _res, next) => {
+    next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
 });
-
 // 9. Global Error Handler
 app.use(globalErrorHandler);
-
 export default app;
