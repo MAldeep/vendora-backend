@@ -1,10 +1,11 @@
 import { ProductVariantsServices } from "../services/productVariants.services.js";
 import { AppError } from "../utils/appError.js";
 import { catchAsync } from "../utils/catchAsync.js";
-import { Request, Response } from "express";
+import { Response } from "express";
 import { UpdateVariantInput } from "../validation/productVariant.schema.js";
+import { AuthRequest } from "../types/http.js";
 export class ProductVariantsControllers {
-  static create = catchAsync(async (req: Request, res: Response) => {
+  static create = catchAsync(async (req: AuthRequest, res: Response) => {
     const tenantId = req.tenantId;
     if (!tenantId) {
       throw new AppError("Tenant ID is required", 400);
@@ -25,27 +26,29 @@ export class ProductVariantsControllers {
       data,
     });
   });
-  static getAllByProductId = catchAsync(async (req: Request, res: Response) => {
-    const tenantId = req.tenantId;
-    if (!tenantId) {
-      throw new AppError("Tenant ID is required", 400);
-    }
+  static getAllByProductId = catchAsync(
+    async (req: AuthRequest, res: Response) => {
+      const tenantId = req.tenantId;
+      if (!tenantId) {
+        throw new AppError("Tenant ID is required", 400);
+      }
 
-    const { id } = req.params;
-    if (!id) {
-      throw new AppError("Product ID is required", 400);
-    }
-    const { data, message } = await ProductVariantsServices.getAllByProductId(
-      tenantId,
-      id as string,
-    );
-    res.status(200).json({
-      status: "success",
-      message,
-      data,
-    });
-  });
-  static getById = catchAsync(async (req: Request, res: Response) => {
+      const { id } = req.params;
+      if (!id) {
+        throw new AppError("Product ID is required", 400);
+      }
+      const { data, message } = await ProductVariantsServices.getAllByProductId(
+        tenantId,
+        id as string,
+      );
+      res.status(200).json({
+        status: "success",
+        message,
+        data,
+      });
+    },
+  );
+  static getById = catchAsync(async (req: AuthRequest, res: Response) => {
     const tenantId = req.tenantId;
     if (!tenantId) {
       throw new AppError("Tenant ID is required", 400);
@@ -68,7 +71,7 @@ export class ProductVariantsControllers {
       data,
     });
   });
-  static update = catchAsync(async (req: Request, res: Response) => {
+  static update = catchAsync(async (req: AuthRequest, res: Response) => {
     const tenantId = req.tenantId;
     if (!tenantId) {
       throw new AppError("Tenant ID is required", 400);
@@ -94,7 +97,7 @@ export class ProductVariantsControllers {
       data,
     });
   });
-  static delete = catchAsync(async (req: Request, res: Response) => {
+  static delete = catchAsync(async (req: AuthRequest, res: Response) => {
     const tenantId = req.tenantId;
     if (!tenantId) {
       throw new AppError("Tenant ID is required", 400);

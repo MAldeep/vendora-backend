@@ -1,13 +1,14 @@
 import { AppError } from "../utils/appError.js";
 import { catchAsync } from "../utils/catchAsync.js";
-import { Request, Response } from "express";
+import { Response } from "express";
 import {
   CreateProductInput,
   UpdateProductInput,
 } from "../validation/product.schemas.js";
 import { ProductServices } from "../services/product.services.js";
+import { AuthRequest } from "../types/http.js";
 export class ProductControllers {
-  static create = catchAsync(async (req: Request, res: Response) => {
+  static create = catchAsync(async (req: AuthRequest, res: Response) => {
     const productData: CreateProductInput = req.body;
     const tenantId = req.tenantId;
     if (!tenantId) {
@@ -26,7 +27,7 @@ export class ProductControllers {
       data,
     });
   });
-  static getAll = catchAsync(async (req: Request, res: Response) => {
+  static getAll = catchAsync(async (req: AuthRequest, res: Response) => {
     const tenantId = req.tenantId;
     if (!tenantId) {
       throw new AppError("Tenant ID IS REQUIRED !", 400);
@@ -43,7 +44,7 @@ export class ProductControllers {
       meta,
     });
   });
-  static getById = catchAsync(async (req: Request, res: Response) => {
+  static getById = catchAsync(async (req: AuthRequest, res: Response) => {
     const tenantId = req.tenantId;
     if (!tenantId) {
       throw new AppError("Tenant ID IS REQUIRED !", 400);
@@ -62,7 +63,7 @@ export class ProductControllers {
       data,
     });
   });
-  static update = catchAsync(async (req: Request, res: Response) => {
+  static update = catchAsync(async (req: AuthRequest, res: Response) => {
     const tenantId = req.tenantId;
     if (!tenantId) {
       throw new AppError("Tenant ID IS REQUIRED !", 400);
@@ -89,7 +90,7 @@ export class ProductControllers {
       data,
     });
   });
-  static delete = catchAsync(async (req: Request, res: Response) => {
+  static delete = catchAsync(async (req: AuthRequest, res: Response) => {
     const tenantId = req.tenantId;
     if (!tenantId) {
       throw new AppError("Tenant ID IS REQUIRED !", 400);

@@ -1,10 +1,11 @@
-import { Request, Response } from "express";
+import { Response } from "express";
 import { catchAsync } from "../utils/catchAsync.js";
 import { AppError } from "../utils/appError.js";
 import { CartServices } from "../services/cart.services.js";
+import { AuthRequest } from "../types/http.js";
 
 export class CartControllers {
-  static addToCart = catchAsync(async (req: Request, res: Response) => {
+  static addToCart = catchAsync(async (req: AuthRequest, res: Response) => {
     const tenantId = req.tenantId;
     if (!tenantId) {
       throw new AppError("Tenant ID must be provided !", 400);
@@ -33,7 +34,7 @@ export class CartControllers {
       },
     });
   });
-  static getCart = catchAsync(async (req: Request, res: Response) => {
+  static getCart = catchAsync(async (req: AuthRequest, res: Response) => {
     const tenantId = req.tenantId;
     if (!tenantId) {
       throw new AppError("Tenant ID must be provided !", 400);
@@ -59,7 +60,7 @@ export class CartControllers {
     });
   });
   static updateCartItemQuantity = catchAsync(
-    async (req: Request, res: Response) => {
+    async (req: AuthRequest, res: Response) => {
       const tenantId = req.tenantId;
       if (!tenantId) {
         throw new AppError("Tenant ID must be provided !", 400);
@@ -90,40 +91,42 @@ export class CartControllers {
       });
     },
   );
-  static removeFromCart = catchAsync(async (req: Request, res: Response) => {
-    const tenantId = req.tenantId;
-    if (!tenantId) {
-      throw new AppError("Tenant ID must be provided !", 400);
-    }
+  static removeFromCart = catchAsync(
+    async (req: AuthRequest, res: Response) => {
+      const tenantId = req.tenantId;
+      if (!tenantId) {
+        throw new AppError("Tenant ID must be provided !", 400);
+      }
 
-    const { itemId } = req.params;
-    const userId = req.user?.id;
-    const guestSessionId =
-      (req.query.sessionId as string) ||
-      (req.headers["x-session-id"] as string);
+      const { itemId } = req.params;
+      const userId = req.user?.id;
+      const guestSessionId =
+        (req.query.sessionId as string) ||
+        (req.headers["x-session-id"] as string);
 
-    if (!userId && !guestSessionId) {
-      throw new AppError(
-        "User authentication or x-session-id is required",
-        400,
+      if (!userId && !guestSessionId) {
+        throw new AppError(
+          "User authentication or x-session-id is required",
+          400,
+        );
+      }
+
+      const cart = await CartServices.removeFromCart(
+        tenantId,
+        itemId as string,
+        userId,
+        guestSessionId,
       );
-    }
 
-    const cart = await CartServices.removeFromCart(
-      tenantId,
-      itemId as string,
-      userId,
-      guestSessionId,
-    );
+      res.status(200).json({
+        status: "success",
+        message: "Item removed from cart successfully",
+        data: { cart },
+      });
+    },
+  );
 
-    res.status(200).json({
-      status: "success",
-      message: "Item removed from cart successfully",
-      data: { cart },
-    });
-  });
-
-  static clearCart = catchAsync(async (req: Request, res: Response) => {
+  static clearCart = catchAsync(async (req: AuthRequest, res: Response) => {
     const tenantId = req.tenantId;
     if (!tenantId) {
       throw new AppError("Tenant ID must be provided !", 400);

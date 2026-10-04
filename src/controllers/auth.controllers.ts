@@ -133,7 +133,7 @@ export class AuthController {
     });
   });
   // invite users
-  static inviteUser = catchAsync(async (req: Request, res: Response) => {
+  static inviteUser = catchAsync(async (req: AuthRequest, res: Response) => {
     const ownerUserId = req.user?.id;
 
     const data = req.body;
@@ -181,7 +181,7 @@ export class AuthController {
     });
   });
   // Delete user from tenant
-  static deleteUser = catchAsync(async (req: Request, res: Response) => {
+  static deleteUser = catchAsync(async (req: AuthRequest, res: Response) => {
     const ownerId = req.user?.id;
     if (!ownerId) {
       throw new AppError("User ID missing from request context", 400);

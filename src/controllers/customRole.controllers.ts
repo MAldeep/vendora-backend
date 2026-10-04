@@ -1,11 +1,12 @@
 import { CustomRoleServices } from "../services/customRole.services.js";
+import { AuthRequest } from "../types/http.js";
 import { AppError } from "../utils/appError.js";
 import { catchAsync } from "../utils/catchAsync.js";
-import { Request, Response } from "express";
+import { Response } from "express";
 
 export class CustomRoleControllers {
   // 1. Create Role
-  static create = catchAsync(async (req: Request, res: Response) => {
+  static create = catchAsync(async (req: AuthRequest, res: Response) => {
     const tenantId = req.tenantId;
     if (!tenantId) {
       throw new AppError("Tenant ID is missing", 400);
@@ -24,7 +25,7 @@ export class CustomRoleControllers {
   });
 
   // 2. Get All Roles
-  static getAll = catchAsync(async (req: Request, res: Response) => {
+  static getAll = catchAsync(async (req: AuthRequest, res: Response) => {
     const tenantId = req.tenantId;
     if (!tenantId) {
       throw new AppError("Tenant ID is missing", 400);
@@ -40,7 +41,7 @@ export class CustomRoleControllers {
   });
 
   // 3. Get Role By ID
-  static getById = catchAsync(async (req: Request, res: Response) => {
+  static getById = catchAsync(async (req: AuthRequest, res: Response) => {
     const tenantId = req.tenantId;
     if (!tenantId) {
       throw new AppError("Tenant ID is missing", 400);
@@ -56,7 +57,7 @@ export class CustomRoleControllers {
   });
 
   // 4. Update Role
-  static update = catchAsync(async (req: Request, res: Response) => {
+  static update = catchAsync(async (req: AuthRequest, res: Response) => {
     const tenantId = req.tenantId;
     if (!tenantId) {
       throw new AppError("Tenant ID is missing", 400);
@@ -77,7 +78,7 @@ export class CustomRoleControllers {
   });
 
   // 5. Delete Role
-  static delete = catchAsync(async (req: Request, res: Response) => {
+  static delete = catchAsync(async (req: AuthRequest, res: Response) => {
     const tenantId = req.tenantId;
     if (!tenantId) {
       throw new AppError("Tenant ID is missing", 400);

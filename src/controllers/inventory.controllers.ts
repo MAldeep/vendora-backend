@@ -1,10 +1,11 @@
-import { Request, Response } from "express";
+import { Response } from "express";
 import { catchAsync } from "../utils/catchAsync.js";
 import { AppError } from "../utils/appError.js";
 import { InventoryServices } from "../services/inventory.services.js";
+import { AuthRequest } from "../types/http.js";
 
 export class InventoryControllers {
-  static adjustStock = catchAsync(async (req: Request, res: Response) => {
+  static adjustStock = catchAsync(async (req: AuthRequest, res: Response) => {
     const tenantId = req.tenantId;
     if (!tenantId) {
       throw new AppError("Tenant ID must be provided !", 400);
@@ -25,7 +26,7 @@ export class InventoryControllers {
       movement,
     });
   });
-  static getLowStock = catchAsync(async (req: Request, res: Response) => {
+  static getLowStock = catchAsync(async (req: AuthRequest, res: Response) => {
     const tenantId = req.tenantId;
     if (!tenantId) {
       throw new AppError("Tenant ID must be provided !", 400);
@@ -46,7 +47,7 @@ export class InventoryControllers {
     });
   });
   static getMovementsHistory = catchAsync(
-    async (req: Request, res: Response) => {
+    async (req: AuthRequest, res: Response) => {
       const tenantId = req.tenantId;
       if (!tenantId) {
         throw new AppError("Tenant ID must be provided !", 400);

@@ -1,10 +1,11 @@
-import { Request, Response } from "express";
+import { Response } from "express";
 import { catchAsync } from "../utils/catchAsync.js";
 import { AppError } from "../utils/appError.js";
 import { OrderServices } from "../services/order.services.js";
+import { AuthRequest } from "../types/http.js";
 
 export class OrderControllers {
-  static checkout = catchAsync(async (req: Request, res: Response) => {
+  static checkout = catchAsync(async (req: AuthRequest, res: Response) => {
     const userId = req.user?.id;
     const {
       shippingAddress,
@@ -40,49 +41,53 @@ export class OrderControllers {
       },
     });
   });
-  static getTenantOrders = catchAsync(async (req: Request, res: Response) => {
-    const tenantId = req.tenantId;
-    if (!tenantId) {
-      throw new AppError("Tenant ID must be provided !", 400);
-    }
+  static getTenantOrders = catchAsync(
+    async (req: AuthRequest, res: Response) => {
+      const tenantId = req.tenantId;
+      if (!tenantId) {
+        throw new AppError("Tenant ID must be provided !", 400);
+      }
 
-    const { orders, pagination } = await OrderServices.getTenantOrders(
-      tenantId,
-      req.query,
-    );
+      const { orders, pagination } = await OrderServices.getTenantOrders(
+        tenantId,
+        req.query,
+      );
 
-    res.status(200).json({
-      status: "success",
-      results: orders.length,
-      pagination,
-      data: { orders },
-    });
-  });
-  static updateOrderStatus = catchAsync(async (req: Request, res: Response) => {
-    const tenantId = req.tenantId;
-    if (!tenantId) {
-      throw new AppError("Tenant ID must be provided !", 400);
-    }
+      res.status(200).json({
+        status: "success",
+        results: orders.length,
+        pagination,
+        data: { orders },
+      });
+    },
+  );
+  static updateOrderStatus = catchAsync(
+    async (req: AuthRequest, res: Response) => {
+      const tenantId = req.tenantId;
+      if (!tenantId) {
+        throw new AppError("Tenant ID must be provided !", 400);
+      }
 
-    const { orderId } = req.params;
-    const { status } = req.body;
-    const userId = req.user?.id;
+      const { orderId } = req.params;
+      const { status } = req.body;
+      const userId = req.user?.id;
 
-    const order = await OrderServices.updateOrderStatus(
-      tenantId,
-      orderId as string,
-      status,
-      userId,
-    );
+      const order = await OrderServices.updateOrderStatus(
+        tenantId,
+        orderId as string,
+        status,
+        userId,
+      );
 
-    res.status(200).json({
-      status: "success",
-      message: `Order status updated to ${status} successfully`,
-      data: { order },
-    });
-  });
+      res.status(200).json({
+        status: "success",
+        message: `Order status updated to ${status} successfully`,
+        data: { order },
+      });
+    },
+  );
 
-  static getMyOrders = catchAsync(async (req: Request, res: Response) => {
+  static getMyOrders = catchAsync(async (req: AuthRequest, res: Response) => {
     const userId = req.user?.id;
     if (!userId) {
       throw new AppError("User authentication required", 401);
@@ -101,7 +106,7 @@ export class OrderControllers {
     });
   });
 
-  static trackOrder = catchAsync(async (req: Request, res: Response) => {
+  static trackOrder = catchAsync(async (req: AuthRequest, res: Response) => {
     const { orderId, email } = req.query as { orderId: string; email: string };
 
     const order = await OrderServices.trackOrder(orderId, email);
@@ -112,7 +117,7 @@ export class OrderControllers {
     });
   });
 
-  static cancelOrder = catchAsync(async (req: Request, res: Response) => {
+  static cancelOrder = catchAsync(async (req: AuthRequest, res: Response) => {
     const orderId = req.params.orderId;
     const userId = req.user?.id;
     const { email: guestEmail, reason } = req.body || {};

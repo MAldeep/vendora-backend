@@ -1,15 +1,16 @@
 import { AppError } from "../utils/appError.js";
 import { catchAsync } from "../utils/catchAsync.js";
-import { Request, Response } from "express";
+import { Response } from "express";
 import {
   CreateCategoryInput,
   UpdateCategoryInput,
 } from "../validation/category.schemas.js";
 import { CategoryServices } from "../services/category.services.js";
+import { AuthRequest } from "../types/http.js";
 
 export class CategoryControllers {
   // 1. Create Category
-  static create = catchAsync(async (req: Request, res: Response) => {
+  static create = catchAsync(async (req: AuthRequest, res: Response) => {
     const tenantId = req.tenantId;
     if (!tenantId) {
       throw new AppError("Tenant ID is missing", 400);
@@ -29,7 +30,7 @@ export class CategoryControllers {
   });
 
   // 2. Get All Categories
-  static getAll = catchAsync(async (req: Request, res: Response) => {
+  static getAll = catchAsync(async (req: AuthRequest, res: Response) => {
     const tenantId = req.tenantId;
     if (!tenantId) {
       throw new AppError("Tenant ID is missing", 400);
@@ -45,7 +46,7 @@ export class CategoryControllers {
   });
 
   // 3. Get Category By ID
-  static getById = catchAsync(async (req: Request, res: Response) => {
+  static getById = catchAsync(async (req: AuthRequest, res: Response) => {
     const tenantId = req.tenantId;
     if (!tenantId) {
       throw new AppError("Tenant ID is missing", 400);
@@ -61,7 +62,7 @@ export class CategoryControllers {
   });
 
   // 4. Update Category
-  static update = catchAsync(async (req: Request, res: Response) => {
+  static update = catchAsync(async (req: AuthRequest, res: Response) => {
     const tenantId = req.tenantId;
     if (!tenantId) {
       throw new AppError("Tenant ID is missing", 400);
@@ -84,7 +85,7 @@ export class CategoryControllers {
   });
 
   // 5. Delete Category
-  static delete = catchAsync(async (req: Request, res: Response) => {
+  static delete = catchAsync(async (req: AuthRequest, res: Response) => {
     const tenantId = req.tenantId;
     if (!tenantId) {
       throw new AppError("Tenant ID is missing", 400);

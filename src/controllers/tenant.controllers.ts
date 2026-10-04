@@ -1,10 +1,11 @@
 import { TenantServices } from "../services/tenant.services.js";
+import { AuthRequest } from "../types/http.js";
 import { AppError } from "../utils/appError.js";
 import { catchAsync } from "../utils/catchAsync.js";
 import { NextFunction, Request, Response } from "express";
 export class TenantControllers {
   static create = catchAsync(
-    async (req: Request, res: Response, next: NextFunction) => {
+    async (req: AuthRequest, res: Response, next: NextFunction) => {
       const ownerId = req.user?.id;
       const data = req.body;
       if (!ownerId) {
@@ -67,17 +68,19 @@ export class TenantControllers {
       message,
     });
   });
-  static addOrUpdateLogo = catchAsync(async (req: Request, res: Response) => {
-    const tenantId = req.tenantId;
-    if (!tenantId) {
-      throw new AppError("Tenant Id must be provided", 400);
-    }
-    const file = req.file as Express.Multer.File;
-    const tenant = await TenantServices.addOrUpdateLogo(tenantId, file);
-    res.status(200).json({
-      status: "success",
-      message: "Tenant Logo Updated Successfully !",
-      data: { tenant },
-    });
-  });
+  static addOrUpdateLogo = catchAsync(
+    async (req: AuthRequest, res: Response) => {
+      const tenantId = req.tenantId;
+      if (!tenantId) {
+        throw new AppError("Tenant Id must be provided", 400);
+      }
+      const file = req.file as Express.Multer.File;
+      const tenant = await TenantServices.addOrUpdateLogo(tenantId, file);
+      res.status(200).json({
+        status: "success",
+        message: "Tenant Logo Updated Successfully !",
+        data: { tenant },
+      });
+    },
+  );
 }
