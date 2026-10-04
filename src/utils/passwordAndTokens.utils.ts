@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import { createHash } from "node:crypto";
 import jwt, { SignOptions } from "jsonwebtoken";
 import { env } from "../config/env.js";
 import { UserType } from "@prisma/client";
@@ -41,6 +42,9 @@ export const generateRefreshToken = (payload: JwtPayload): string => {
   };
   return jwt.sign(payload, env.JWT_REFRESH_SECRET, options);
 };
+
+export const hashRefreshToken = (token: string): string =>
+  createHash("sha256").update(token).digest("hex");
 
 export const verifyAccessToken = (token: string): JwtPayload => {
   return jwt.verify(token, env.JWT_ACCESS_SECRET) as JwtPayload;

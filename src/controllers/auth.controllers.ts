@@ -168,7 +168,8 @@ export class AuthController {
     });
   });
   // logout
-  static logout = catchAsync(async (_req: Request, res: Response) => {
+  static logout = catchAsync(async (req: Request, res: Response) => {
+    await AuthServices.logout(req.cookies.refreshToken);
     res.clearCookie("accessToken", { ...accessTokenCookiesOptions, maxAge: 0 });
     res.clearCookie("refreshToken", {
       ...refreshTokenCookiesOptions,

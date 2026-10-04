@@ -7,6 +7,7 @@ import {
   generateAccessToken,
   generateRefreshToken,
   generateVerificationToken,
+  hashRefreshToken,
   hashPassword,
   JwtPayload,
   verifyRefreshToken,
@@ -26,6 +27,18 @@ import { env } from "../config/env.js";
 import jwt from "jsonwebtoken";
 import { EmailService } from "./email.service.js";
 import { DEFAULT_ROLE_PERMISSIONS } from "../config/permissions.js";
+
+const getRefreshTokenExpiresAt = (token: string): Date => {
+  const payload = jwt.decode(token);
+  if (
+    typeof payload === "string" ||
+    !payload ||
+    typeof payload.exp !== "number"
+  ) {
+    throw new AppError("Unable to determine refresh token expiration", 500);
+  }
+  return new Date(payload.exp * 1000);
+};
 
 export class AuthServices {
   // Register initiation customer (normal user)
@@ -187,7 +200,13 @@ export class AuthServices {
 
     const accessToken = generateAccessToken(tokenPayload);
     const refreshToken = generateRefreshToken(tokenPayload);
-
+    await prisma.refreshToken.create({
+      data: {
+        userId: user.id,
+        tokenHash: hashRefreshToken(refreshToken),
+        expiresAt: getRefreshTokenExpiresAt(refreshToken),
+      },
+    });
     return {
       user: fullUserData,
       accessToken,
@@ -209,6 +228,32 @@ export class AuthServices {
     }
 
     const user = await AuthServices.getMe(decoded.userId);
+    const now = new Date();
+    const incomingTokenHash = hashRefreshToken(refreshToken);
+    const storedToken =
+      (await prisma.refreshToken.findFirst({
+        where: {
+          tokenHash: incomingTokenHash,
+          userId: decoded.userId,
+          isRevoked: false,
+          expiresAt: { gt: now },
+        },
+      })) ??
+      (await prisma.refreshToken.findFirst({
+        where: {
+          tokenHash: refreshToken,
+          userId: decoded.userId,
+          isRevoked: false,
+          expiresAt: { gt: now },
+        },
+      }));
+
+    if (!storedToken) {
+      throw new AppError(
+        "Invalid or expired refresh token. Please log in again.",
+        401,
+      );
+    }
 
     const tokenPayload: JwtPayload = {
       userId: user.id,
@@ -219,11 +264,68 @@ export class AuthServices {
     const newAccessToken = generateAccessToken(tokenPayload);
     const newRefreshToken = generateRefreshToken(tokenPayload);
 
+    await prisma.$transaction(async (tx) => {
+      const consumedToken = await tx.refreshToken.updateMany({
+        where: {
+          id: storedToken.id,
+          tokenHash: storedToken.tokenHash,
+          isRevoked: false,
+          expiresAt: { gt: now },
+        },
+        data: {
+          tokenHash: incomingTokenHash,
+          isRevoked: true,
+        },
+      });
+
+      if (consumedToken.count !== 1) {
+        throw new AppError(
+          "Invalid or expired refresh token. Please log in again.",
+          401,
+        );
+      }
+
+      await tx.refreshToken.create({
+        data: {
+          userId: user.id,
+          tokenHash: hashRefreshToken(newRefreshToken),
+          expiresAt: getRefreshTokenExpiresAt(newRefreshToken),
+        },
+      });
+    });
+
     return {
       user,
       accessToken: newAccessToken,
       refreshToken: newRefreshToken,
     };
+  }
+
+  static async logout(refreshToken?: string) {
+    if (!refreshToken) return;
+
+    const tokenHash = hashRefreshToken(refreshToken);
+    const storedToken =
+      (await prisma.refreshToken.findFirst({
+        where: { tokenHash, isRevoked: false },
+      })) ??
+      (await prisma.refreshToken.findFirst({
+        where: { tokenHash: refreshToken, isRevoked: false },
+      }));
+
+    if (!storedToken) return;
+
+    await prisma.refreshToken.updateMany({
+      where: {
+        id: storedToken.id,
+        tokenHash: storedToken.tokenHash,
+        isRevoked: false,
+      },
+      data: {
+        tokenHash,
+        isRevoked: true,
+      },
+    });
   }
 
   // Get Me
@@ -574,6 +676,13 @@ export class AuthServices {
 
     const accessToken = generateAccessToken(tokenPayload);
     const refreshToken = generateRefreshToken(tokenPayload);
+    await prisma.refreshToken.create({
+      data: {
+        userId: result.user.id,
+        tokenHash: hashRefreshToken(refreshToken),
+        expiresAt: getRefreshTokenExpiresAt(refreshToken),
+      },
+    });
 
     return {
       message: "Invitation accepted successfully.",

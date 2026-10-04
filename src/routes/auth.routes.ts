@@ -340,7 +340,7 @@ router.post("/refresh-token", AuthController.refreshToken);
  * @openapi
  * /api/v1/auth/logout:
  *   post:
- *     summary: Clear authentication cookies from the client
+ *     summary: Revoke the refresh token and clear authentication cookies
  *     tags:
  *       - Auth
  *     responses:
